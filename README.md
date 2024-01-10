@@ -1,2 +1,2 @@
 # Crafting-Interpreter-in-Rust
-Reading "Crafting interpreters" book and building an interpreter in Rust along the way
+Reading [Crafting Interpreters](https://craftinginterpreters.com/contents.html#top) book and building an interpreter in Rust along the way
