@@ -3,6 +3,8 @@ use std::fs;
 use std::process;
 use std::io::Write;
 
+mod lox;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() > 2 {
@@ -23,7 +25,7 @@ fn run_file(file_path: &String) {
             println!("{}. {}", file_path, e.to_string());
             process::exit(65);
         },
-        Ok(content) => run(&content) 
+        Ok(content) => lox::run(&content) 
     }
 }
 
@@ -39,10 +41,6 @@ fn run_prompt() {
         if input.trim() == String::from("exit()") {
             break;
         }
-        run(&input);
+        lox::run(&input);
     }
-}
-
-fn run(source: &String) {
-    println!("running: {}", source);
 }
