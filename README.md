@@ -1,5 +1,5 @@
 # Crafting-Interpreter-in-Rust
-Reading [Crafting Interpreters](https://craftinginterpreters.com/contents.html#top) book and building an interpreter in Rust along the way.
+Reading [Crafting Interpreters](https://craftinginterpreters.com/contents.html#top) book and building an interpreter for the [Lox programming language](https://craftinginterpreters.com/the-lox-language.html) in Rust along the way.
 
 ### Lox programming language
 
@@ -44,18 +44,18 @@ print add5(100);
 ```
 
 
-The programming laguage should support [following things](https://craftinginterpreters.com/the-lox-language.html):
+# Lox supports following things:
 
-#### Dynamic Typing
+## Dynamic Typing
 Variables can store values of any type, and a single variable can even store values of different types at different times.
-#### Automatic memeory management
+## Automatic memeory management
 Users don't have to manually allocate and free the memory.
-#### Data Types
+## Data Types
    - Boolean (true, false)
    - Number (integer, decimal)
    - String 
    - Nil
-#### Expressions
+## Expressions
    - Artihmetic
      - add + me
      - subtract - me
@@ -73,21 +73,21 @@ Users don't have to manually allocate and free the memory.
      - bool1 or bool2
    - Precedence and grouping
      - a + b / 2 == a + (b / 2)
-#### Statements
+## Statements
    - print "Hello, World!";
-#### Variables
+## Variables
    - var iAmStr = "here is my val";
    - var iAmNil;
    - var a = "apple"; print a; a = "ball"; print b;
-#### Control Flow
+## Control Flow
    - if (condition) { print "yes"; } else { print "no"; }
    - for (var a = 1; a < 10; a++) { print a; }
    - var a = 1; while (a < 10) { print a; a = a + 1; }
-#### Functions
+## Functions
    - fun add(a, b) { print a + b; }
    - fun add(a, b) { return a + b; }
    - add(2, 4);
-#### Closures
+## Closures
    ```
 fun returnFunction() {
         var outside = "outside";
@@ -103,7 +103,7 @@ var fn = returnFunction();
 fn();
    ```
 inner() has to “hold on” to references to any surrounding variables that it uses so that they stay around even after the outer function has returned. This concept is called closure.
-#### Classes
+## Classes
 ```
 class Breakfast {
   cook() {
@@ -115,7 +115,7 @@ class Breakfast {
   }
 }
 ```
-#### Single Inheritence
+## Single Inheritance
 ```
 class Brunch < Breakfast {
   drink() {
