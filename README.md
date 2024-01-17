@@ -1,5 +1,5 @@
 # Crafting-Interpreter-in-Rust
-Reading [Crafting Interpreters](https://craftinginterpreters.com/contents.html#top) book and building an interpreter in Rust along the way.
+Reading [Crafting Interpreters](https://craftinginterpreters.com/contents.html#top) book and building an interpreter for the Lox programming language in Rust along the way.
 
 ### Lox programming language
 
