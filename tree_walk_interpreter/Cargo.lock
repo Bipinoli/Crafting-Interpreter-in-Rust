@@ -5,3 +5,10 @@ version = 3
 [[package]]
 name = "lox"
 version = "0.1.0"
+dependencies = [
+ "lox_core",
+]
+
+[[package]]
+name = "lox_core"
+version = "0.1.0"

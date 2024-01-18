@@ -1,9 +1,9 @@
 use std::env;
 use std::fs;
-use std::process;
 use std::io::Write;
+use std::process;
 
-mod lox;
+use lox_core;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -24,8 +24,8 @@ fn run_file(file_path: &String) {
         Err(e) => {
             println!("{}. {}", file_path, e.to_string());
             process::exit(65);
-        },
-        Ok(content) => lox::run(&content) 
+        }
+        Ok(content) => lox_core::run(&content),
     }
 }
 
@@ -41,6 +41,6 @@ fn run_prompt() {
         if input.trim() == String::from("exit()") {
             break;
         }
-        lox::run(&input);
+        lox_core::run(&input);
     }
 }
