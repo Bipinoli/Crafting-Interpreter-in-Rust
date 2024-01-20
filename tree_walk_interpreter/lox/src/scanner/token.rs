@@ -1,62 +1,61 @@
+#[derive(Debug)]
 enum TokenType {
     // single char tokens
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_BRACE,
-    RIGHT_BRACE,
-    COMMA,
-    DOT,
-    MINUS,
-    PLUS,
-    SEMICOLON,
-    SLASH,
-    STAR,
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    Dot,
+    Comma,
+    Plus,
+    Minus,
+    Slash,
+    Star,
+    Semicolon,
 
     // one or two chars
-    BANG,
-    BANG_EQUAL,
-    EQUAL,
-    EQUAL_EQUAL,
-    GREATER,
-    GREATER_EQUAL,
-    LESS,
-    LESS_EQUAL,
+    Equal,
+    EqualEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    Bang,
+    BangEqual,
 
     // literals
-    IDENTIFIER,
-    STRING,
-    NUMBER,
+    Identifier,
+    String,
+    Number,
 
     // keywords
-    AND,
-    CLASS,
-    ELSE,
-    FALSE,
-    FUN,
-    FOR,
-    IF,
-    NIL,
-    OR,
-    PRINT,
-    RETURN,
-    SUPER,
-    THIS,
-    TRUE,
-    VAR,
-    WHILE,
-
-    EOF,
+    Or,
+    And,
+    If,
+    Else,
+    True,
+    False,
+    Fun,
+    Return,
+    Class,
+    Super,
+    This,
+    Var,
+    Nil,
+    For,
+    While,
+    Print,
+    Eof
 }
 
 struct Token {
-    type: TokenType,
+    token_type: TokenType,
     lexeme: String,
     line: u32,
-        
 }
 
 impl Token {
     fn to_string(&self)-> String {
-        format!("{} {} {}", self.type, self.lexeme, self.line)
+        format!("{} {} {}", self.token_type, self.lexeme, self.line)
     }
 }
