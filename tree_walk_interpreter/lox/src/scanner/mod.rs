@@ -9,7 +9,6 @@ mod token;
 pub struct Scanner<'a> {
     source: Peekable<Chars<'a>>,
     tokens: Vec<Token>,
-    cur_lexeme: String,
     line: usize,
 }
 impl Scanner {
@@ -17,7 +16,6 @@ impl Scanner {
         Scanner {
             source: source.chars().peekable(),
             tokens: vec![],
-            cur_lexeme: String::new(),
             line: 1,
         }
     }
@@ -94,6 +92,10 @@ impl Scanner {
                     }
                 }
 
+               '"' => self.match_string(),
+                '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => self.match_number(c),
+               'a'..='z' | 'A'..='Z' => self.match_keyword_or_identifier(c),
+
                 _ => {
                     error::report(
                         self.line,
@@ -104,6 +106,18 @@ impl Scanner {
                 }
             },
         }
+    }
+
+    fn match_string(&mut self) {
+
+    }
+
+    fn match_number(&mut self, starting_char: char) {
+
+    }
+
+    fn match_keyword_or_identifier(&mut self, starting_char: char) {
+        
     }
 
     fn match_next_char(
