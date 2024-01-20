@@ -1,5 +1,7 @@
+use std::fmt;
+
 #[derive(Debug)]
-enum TokenType {
+pub enum TokenType {
     // single char tokens
     LeftParen,
     RightParen,
@@ -47,15 +49,27 @@ enum TokenType {
     Print,
     Eof
 }
+impl fmt::Display for TokenType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
-struct Token {
+pub struct Token {
     token_type: TokenType,
     lexeme: String,
-    line: u32,
+    line: usize,
 }
 
 impl Token {
-    fn to_string(&self)-> String {
+   pub fn new(token_type: TokenType, lexeme: String, line: usize) -> Token {
+      Token {
+         token_type,
+         lexeme,
+         line
+      }
+   }
+   pub fn to_string(&self)-> String {
         format!("{} {} {}", self.token_type, self.lexeme, self.line)
     }
 }
