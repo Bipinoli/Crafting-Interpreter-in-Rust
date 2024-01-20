@@ -47,6 +47,7 @@ pub enum TokenType {
     For,
     While,
     Print,
+
     Eof
 }
 impl fmt::Display for TokenType {

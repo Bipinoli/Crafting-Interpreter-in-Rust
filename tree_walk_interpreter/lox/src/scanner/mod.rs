@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::error;
 use crate::scanner::token::{Token, TokenType};
 use std::iter::Peekable;
@@ -23,7 +24,7 @@ impl Scanner {
         while self.source.peek() != None {
             self.scan_token();
         }
-        self.add_token(TokenType::Eof, String::new(), self.line);
+        self.add_token(TokenType::Eof, String::new());
         &self.tokens
     }
 
@@ -34,16 +35,16 @@ impl Scanner {
                 ' ' | '\r' | '\t' => {}
                 '\n' => self.line += 1,
 
-                '(' => self.add_token(TokenType::LeftParen, String::from("("), self.line),
-                ')' => self.add_token(TokenType::RightParen, String::from(")"), self.line),
-                '{' => self.add_token(TokenType::LeftBrace, String::from("{"), self.line),
-                '}' => self.add_token(TokenType::RightBrace, String::from("}"), self.line),
-                ',' => self.add_token(TokenType::Comma, String::from(","), self.line),
-                '.' => self.add_token(TokenType::Dot, String::from("."), self.line),
-                '-' => self.add_token(TokenType::Minus, String::from("-"), self.line),
-                '+' => self.add_token(TokenType::Plus, String::from("+"), self.line),
-                '*' => self.add_token(TokenType::Star, String::from("*"), self.line),
-                ';' => self.add_token(TokenType::Semicolon, String::from(";"), self.line),
+                '(' => self.add_token(TokenType::LeftParen, String::from("(")),
+                ')' => self.add_token(TokenType::RightParen, String::from(")")),
+                '{' => self.add_token(TokenType::LeftBrace, String::from("{")),
+                '}' => self.add_token(TokenType::RightBrace, String::from("}")),
+                ',' => self.add_token(TokenType::Comma, String::from(",")),
+                '.' => self.add_token(TokenType::Dot, String::from(".")),
+                '-' => self.add_token(TokenType::Minus, String::from("-")),
+                '+' => self.add_token(TokenType::Plus, String::from("+")),
+                '*' => self.add_token(TokenType::Star, String::from("*")),
+                ';' => self.add_token(TokenType::Semicolon, String::from(";")),
 
                 '!' => {
                     self.match_next_char(
@@ -88,7 +89,7 @@ impl Scanner {
                             // matched a comment line
                             while self.source.next() != Some('\n') {}
                         }
-                        _ => self.add_token(TokenType::Slash, String::from("/"), self.line),
+                        _ => self.add_token(TokenType::Slash, String::from("/")),
                     }
                 }
 
@@ -117,7 +118,47 @@ impl Scanner {
     }
 
     fn match_keyword_or_identifier(&mut self, starting_char: char) {
-        
+        let mut lexeme = String::from(starting_char);
+        loop {
+            match self.source.peek() {
+                Some(c) => {
+                    match c {
+                        'a'..='z' | 'A'..='Z' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                            lexeme.push(c.clone());
+                            self.source.next();
+                        }
+                        _ => { break; }
+                    }
+                }
+                None => { break; }
+            }
+        }
+        let mut keywords = HashMap::from([
+            ("or", TokenType::Or),
+            ("and", TokenType::And),
+            ("if", TokenType::If),
+            ("else", TokenType::Else),
+            ("true", TokenType::True),
+            ("false", TokenType::False),
+            ("fun", TokenType::Fun),
+            ("return", TokenType::Return),
+            ("class", TokenType::Class),
+            ("super", TokenType::Super),
+            ("this", TokenType::This),
+            ("var", TokenType::Var),
+            ("nil", TokenType::Nil),
+            ("for", TokenType::For),
+            ("while", TokenType::While),
+            ("print", TokenType::Print),
+        ]);
+        match keywords.remove(lexeme.as_str()) {
+            None => {
+                self.add_token(TokenType::Identifier, lexeme);
+            }
+            Some(keyword_token) => {
+                self.add_token(keyword_token, lexeme);
+            }
+        }
     }
 
     fn match_next_char(
@@ -131,15 +172,15 @@ impl Scanner {
         match self.source.peek() {
             Some(c) if c == to_match => {
                 self.source.next();
-                self.add(match_token, match_lexeme, self.line);
+                self.add(match_token, match_lexeme);
             }
             _ => {
-                self.add_token(unmatch_token, unmatch_lexeme, self.line);
+                self.add_token(unmatch_token, unmatch_lexeme);
             }
         }
     }
 
-    fn add_token(&mut self, token_type: TokenType, lexeme: String, line: usize) {
-        self.tokens.push(Token::new(token_type, lexeme, line));
+    fn add_token(&mut self, token_type: TokenType, lexeme: String) {
+        self.tokens.push(Token::new(token_type, lexeme, self.line));
     }
 }
