@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::error;
 use crate::scanner::token::{Token, TokenType};
+use std::collections::HashMap;
 use std::iter::Peekable;
 use std::process;
 use std::str::Chars;
@@ -8,12 +8,12 @@ use std::str::Chars;
 mod token;
 
 pub struct Scanner<'a> {
-    source: Peekable<Chars<'a>>,
-    tokens: Vec<Token>,
+    pub source: Peekable<Chars<'a>>,
+    pub tokens: Vec<Token>,
     line: usize,
 }
-impl Scanner {
-    pub fn new(source: String) -> Scanner {
+impl Scanner<'_> {
+    pub fn new(source: &String) -> Scanner {
         Scanner {
             source: source.chars().peekable(),
             tokens: vec![],
@@ -93,44 +93,89 @@ impl Scanner {
                     }
                 }
 
-               '"' => self.match_string(),
-                '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => self.match_number(c),
-               'a'..='z' | 'A'..='Z' => self.match_keyword_or_identifier(c),
+                '"' => self.match_string(),
 
                 _ => {
-                    error::report(
-                        self.line,
-                        String::from("Unexpected character!"),
-                        String::new(),
-                    );
-                    process::exit(65);
+                    if Self::is_digit(c) {
+                        self.match_number(c);
+                    } else if Self::is_alphabetic(c) {
+                        self.match_keyword_or_identifier(c);
+                    } else {
+                        error::report(
+                            self.line,
+                            String::from("Unexpected character!"),
+                            String::new(),
+                        );
+                        process::exit(65);
+                    }
                 }
             },
         }
     }
 
     fn match_string(&mut self) {
-
+        let mut lexeme = String::new();
+        loop {
+            match self.source.next() {
+                Some('"') => {
+                    self.add_token(TokenType::String, lexeme.clone());
+                    break;
+                }
+                Some('\n') => {
+                    self.line += 1;
+                    lexeme.push('\n');
+                }
+                Some(c) => {
+                    lexeme.push(c.clone());
+                }
+                None => {
+                    error::report(
+                        self.line,
+                        String::from("Unterminated string."),
+                        String::new(),
+                    );
+                    process::exit(65);
+                }
+            }
+        }
     }
 
     fn match_number(&mut self, starting_char: char) {
-
+        let mut lexeme = String::from(starting_char);
+        let mut decimal_read = false;
+        loop {
+            match self.source.peek() {
+                Some(c) if Self::is_digit(c.clone()) => {
+                    lexeme.push(c.clone());
+                    self.source.next();
+                }
+                Some('.') if !decimal_read => match self.peek_skip_ahead() {
+                    Some(c) if Self::is_digit(c.clone()) => {
+                        lexeme.push('.');
+                        decimal_read = true;
+                        self.source.next();
+                    }
+                    _ => {}
+                },
+                _ => {
+                    break;
+                }
+            }
+        }
+        self.add_token(TokenType::Number, lexeme);
     }
 
     fn match_keyword_or_identifier(&mut self, starting_char: char) {
         let mut lexeme = String::from(starting_char);
         loop {
             match self.source.peek() {
-                Some(c) => {
-                    match c {
-                        'a'..='z' | 'A'..='Z' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                            lexeme.push(c.clone());
-                            self.source.next();
-                        }
-                        _ => { break; }
-                    }
+                Some(c) if Self::is_alphabetic(c.clone()) || Self::is_digit(c.clone()) => {
+                    lexeme.push(c.clone());
+                    self.source.next();
                 }
-                None => { break; }
+                _ => {
+                    break;
+                }
             }
         }
         let mut keywords = HashMap::from([
@@ -170,9 +215,9 @@ impl Scanner {
         unmatch_lexeme: String,
     ) {
         match self.source.peek() {
-            Some(c) if c == to_match => {
+            Some(c) if c.clone() == to_match => {
                 self.source.next();
-                self.add(match_token, match_lexeme);
+                self.add_token(match_token, match_lexeme);
             }
             _ => {
                 self.add_token(unmatch_token, unmatch_lexeme);
@@ -182,5 +227,25 @@ impl Scanner {
 
     fn add_token(&mut self, token_type: TokenType, lexeme: String) {
         self.tokens.push(Token::new(token_type, lexeme, self.line));
+    }
+
+    fn peek_skip_ahead(&self) -> Option<char> {
+        let mut iter = self.source.clone();
+        iter.next();
+        iter.next()
+    }
+
+    fn is_digit(ch: char) -> bool {
+        match ch {
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => true,
+            _ => false,
+        }
+    }
+
+    fn is_alphabetic(ch: char) -> bool {
+        match ch {
+            'a'..='z' | 'A'..='Z' => true,
+            _ => false,
+        }
     }
 }
