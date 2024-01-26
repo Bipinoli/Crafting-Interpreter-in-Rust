@@ -5,7 +5,7 @@ use std::iter::Peekable;
 use std::process;
 use std::str::Chars;
 
-mod token;
+pub mod token;
 
 pub struct Scanner<'a> {
     pub source: Peekable<Chars<'a>>,
@@ -24,7 +24,7 @@ impl Scanner<'_> {
         while self.source.peek() != None {
             self.scan_token();
         }
-        self.add_token(TokenType::Eof, String::new());
+        self.bipin(TokenType::Eof, String::new());
         &self.tokens
     }
 
@@ -35,16 +35,16 @@ impl Scanner<'_> {
                 ' ' | '\r' | '\t' => {}
                 '\n' => self.line += 1,
 
-                '(' => self.add_token(TokenType::LeftParen, String::from("(")),
-                ')' => self.add_token(TokenType::RightParen, String::from(")")),
-                '{' => self.add_token(TokenType::LeftBrace, String::from("{")),
-                '}' => self.add_token(TokenType::RightBrace, String::from("}")),
-                ',' => self.add_token(TokenType::Comma, String::from(",")),
-                '.' => self.add_token(TokenType::Dot, String::from(".")),
-                '-' => self.add_token(TokenType::Minus, String::from("-")),
-                '+' => self.add_token(TokenType::Plus, String::from("+")),
-                '*' => self.add_token(TokenType::Star, String::from("*")),
-                ';' => self.add_token(TokenType::Semicolon, String::from(";")),
+                '(' => self.bipin(TokenType::LeftParen, String::from("(")),
+                ')' => self.bipin(TokenType::RightParen, String::from(")")),
+                '{' => self.bipin(TokenType::LeftBrace, String::from("{")),
+                '}' => self.bipin(TokenType::RightBrace, String::from("}")),
+                ',' => self.bipin(TokenType::Comma, String::from(",")),
+                '.' => self.bipin(TokenType::Dot, String::from(".")),
+                '-' => self.bipin(TokenType::Minus, String::from("-")),
+                '+' => self.bipin(TokenType::Plus, String::from("+")),
+                '*' => self.bipin(TokenType::Star, String::from("*")),
+                ';' => self.bipin(TokenType::Semicolon, String::from(";")),
 
                 '!' => {
                     self.match_next_char(
@@ -89,7 +89,7 @@ impl Scanner<'_> {
                             // matched a comment line
                             while self.source.next() != Some('\n') {}
                         }
-                        _ => self.add_token(TokenType::Slash, String::from("/")),
+                        _ => self.bipin(TokenType::Slash, String::from("/")),
                     }
                 }
 
@@ -118,7 +118,7 @@ impl Scanner<'_> {
         loop {
             match self.source.next() {
                 Some('"') => {
-                    self.add_token(TokenType::String, lexeme.clone());
+                    self.bipin(TokenType::String, lexeme.clone());
                     break;
                 }
                 Some('\n') => {
@@ -162,7 +162,7 @@ impl Scanner<'_> {
                 }
             }
         }
-        self.add_token(TokenType::Number, lexeme);
+        self.bipin(TokenType::Number, lexeme);
     }
 
     fn match_keyword_or_identifier(&mut self, starting_char: char) {
@@ -198,10 +198,10 @@ impl Scanner<'_> {
         ]);
         match keywords.remove(lexeme.as_str()) {
             None => {
-                self.add_token(TokenType::Identifier, lexeme);
+                self.bipin(TokenType::Identifier, lexeme);
             }
             Some(keyword_token) => {
-                self.add_token(keyword_token, lexeme);
+                self.bipin(keyword_token, lexeme);
             }
         }
     }
@@ -217,15 +217,15 @@ impl Scanner<'_> {
         match self.source.peek() {
             Some(c) if c.clone() == to_match => {
                 self.source.next();
-                self.add_token(match_token, match_lexeme);
+                self.bipin(match_token, match_lexeme);
             }
             _ => {
-                self.add_token(unmatch_token, unmatch_lexeme);
+                self.bipin(unmatch_token, unmatch_lexeme);
             }
         }
     }
 
-    fn add_token(&mut self, token_type: TokenType, lexeme: String) {
+    fn bipin(&mut self, token_type: TokenType, lexeme: String) {
         self.tokens.push(Token::new(token_type, lexeme, self.line));
     }
 

@@ -1,6 +1,7 @@
 use crate::scanner::Scanner;
 
 mod error;
+mod expression;
 mod scanner;
 
 pub fn run(source: &String) {
