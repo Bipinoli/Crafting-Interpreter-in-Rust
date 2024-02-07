@@ -1,16 +1,15 @@
 use crate::scanner::token::{Token, TokenType};
 
 pub trait ExpressionVisitor {
-    fn for_unary(&self, visitable: &Unary);
-    fn for_binary(&self, visitable: &Binary);
-    fn for_grouping(&self, visitable: &Grouping);
-    fn for_literal(&self, visitable: &Literal);
-}
-pub trait VisitableExpression {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>);
+    fn for_unary(&self, expr: &Unary) -> String;
+    fn for_binary(&self, expr: &Binary) -> String;
+    fn for_grouping(&self, expr: &Grouping) -> String;
+    fn for_literal(&self, expr: &Literal) -> String;
 }
 
-pub trait Expr {}
+pub trait Expr {
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> String;
+}
 
 pub struct Operator {
     token: Token,
@@ -49,7 +48,7 @@ impl Binary {
 }
 
 pub struct Literal {
-    token: Token,
+    pub token: Token,
 }
 impl Literal {
     pub fn new(token: Token) -> Literal {
@@ -83,28 +82,26 @@ impl Grouping {
     }
 }
 
-impl Expr for Binary {}
-impl Expr for Unary {}
-impl Expr for Grouping {}
-impl Expr for Literal {}
-
-impl VisitableExpression for Binary {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) {
+impl Expr for Binary {
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> String {
         visitor.for_binary(self)
     }
 }
-impl VisitableExpression for Unary {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) {
+
+impl Expr for Unary {
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> String {
         visitor.for_unary(self)
     }
 }
-impl VisitableExpression for Grouping {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) {
+
+impl Expr for Grouping {
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> String {
         visitor.for_grouping(self)
     }
 }
-impl VisitableExpression for Literal {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) {
+
+impl Expr for Literal {
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> String {
         visitor.for_literal(self)
     }
 }

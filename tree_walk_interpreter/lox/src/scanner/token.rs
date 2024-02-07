@@ -59,7 +59,7 @@ impl fmt::Display for TokenType {
 #[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
-    lexeme: String,
+    pub lexeme: String,
     line: usize,
 }
 
