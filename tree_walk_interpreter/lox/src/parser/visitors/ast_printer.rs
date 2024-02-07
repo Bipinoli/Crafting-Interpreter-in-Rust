@@ -11,31 +11,33 @@ impl AstPrinterVisitor {
     }
 }
 
-fn parenthesize(
-    name: String,
-    exprs: Vec<Box<dyn Expr>>,
-    visitor: Box<dyn ExpressionVisitor>,
-) -> String {
-    let mut retval = String::from("( {name}");
+fn parenthesize(name: String, exprs: Vec<&Box<dyn Expr>>) -> String {
     let mut sub_rslts: Vec<String> = vec![];
     for expr in exprs {
-        // (*expr).accept(visitor);
+        sub_rslts.push((*expr).accept(Box::new(AstPrinterVisitor::new())));
     }
-    retval
+    format!("({name} {})", sub_rslts.join(" "))
 }
 
 impl ExpressionVisitor for AstPrinterVisitor {
     fn for_unary(&self, expr: &Unary) -> String {
-        "unary".to_owned()
+        let name = (*expr).operator.token.lexeme.clone();
+        let right = &(*expr).right;
+        parenthesize(name, vec![right])
     }
     fn for_binary(&self, expr: &Binary) -> String {
-        "Binary".to_string()
+        let name = (*expr).operator.token.lexeme.clone();
+        let left = &expr.left;
+        let right = &expr.right;
+        parenthesize(name, vec![left, right])
     }
     fn for_literal(&self, expr: &Literal) -> String {
         expr.token.lexeme.clone()
     }
-    fn for_grouping(&self, visitable: &Grouping) -> String {
-        "Grouping".to_owned()
+    fn for_grouping(&self, expr: &Grouping) -> String {
+        let name = "group".to_owned();
+        let expr = &expr.expr;
+        parenthesize(name, vec![expr])
     }
 }
 
@@ -68,6 +70,7 @@ mod tests {
         );
         let expected = "(* (- 123) (group 321))".to_owned();
         let ast = expr.accept(Box::new(AstPrinterVisitor::new()));
+        println!("{ast}");
         assert_eq!(ast, expected);
     }
 }

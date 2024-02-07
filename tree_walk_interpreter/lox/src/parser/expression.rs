@@ -12,7 +12,7 @@ pub trait Expr {
 }
 
 pub struct Operator {
-    token: Token,
+    pub token: Token,
 }
 impl Operator {
     pub fn new(token: Token) -> Operator {
@@ -33,9 +33,9 @@ impl Operator {
 }
 
 pub struct Binary {
-    left: Box<dyn Expr>,
-    right: Box<dyn Expr>,
-    operator: Operator,
+    pub left: Box<dyn Expr>,
+    pub right: Box<dyn Expr>,
+    pub operator: Operator,
 }
 impl Binary {
     pub fn new(left: Box<dyn Expr>, right: Box<dyn Expr>, operator: Operator) -> Binary {
@@ -64,8 +64,8 @@ impl Literal {
 }
 
 pub struct Unary {
-    operator: Operator,
-    right: Box<dyn Expr>,
+    pub operator: Operator,
+    pub right: Box<dyn Expr>,
 }
 impl Unary {
     pub fn new(operator: Operator, right: Box<dyn Expr>) -> Unary {
@@ -74,7 +74,7 @@ impl Unary {
 }
 
 pub struct Grouping {
-    expr: Box<dyn Expr>,
+    pub expr: Box<dyn Expr>,
 }
 impl Grouping {
     pub fn new(expr: Box<dyn Expr>) -> Grouping {
