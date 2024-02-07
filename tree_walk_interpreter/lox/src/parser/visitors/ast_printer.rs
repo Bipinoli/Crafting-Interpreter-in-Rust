@@ -42,7 +42,7 @@ impl ExpressionVisitor for AstPrinterVisitor {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parser::expression::{Binary, Grouping, Literal, Operator, Unary},
+        parser::expression::{Binary, Expr, Grouping, Literal, Operator, Unary},
         scanner::token::{Token, TokenType},
     };
 
