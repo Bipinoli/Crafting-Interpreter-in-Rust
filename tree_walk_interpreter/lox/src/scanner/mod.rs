@@ -24,7 +24,7 @@ impl Scanner<'_> {
         while self.source.peek() != None {
             self.scan_token();
         }
-        self.bipin(TokenType::Eof, String::new());
+        self.add_token(TokenType::Eof, String::new());
         &self.tokens
     }
 
@@ -35,16 +35,16 @@ impl Scanner<'_> {
                 ' ' | '\r' | '\t' => {}
                 '\n' => self.line += 1,
 
-                '(' => self.bipin(TokenType::LeftParen, String::from("(")),
-                ')' => self.bipin(TokenType::RightParen, String::from(")")),
-                '{' => self.bipin(TokenType::LeftBrace, String::from("{")),
-                '}' => self.bipin(TokenType::RightBrace, String::from("}")),
-                ',' => self.bipin(TokenType::Comma, String::from(",")),
-                '.' => self.bipin(TokenType::Dot, String::from(".")),
-                '-' => self.bipin(TokenType::Minus, String::from("-")),
-                '+' => self.bipin(TokenType::Plus, String::from("+")),
-                '*' => self.bipin(TokenType::Star, String::from("*")),
-                ';' => self.bipin(TokenType::Semicolon, String::from(";")),
+                '(' => self.add_token(TokenType::LeftParen, String::from("(")),
+                ')' => self.add_token(TokenType::RightParen, String::from(")")),
+                '{' => self.add_token(TokenType::LeftBrace, String::from("{")),
+                '}' => self.add_token(TokenType::RightBrace, String::from("}")),
+                ',' => self.add_token(TokenType::Comma, String::from(",")),
+                '.' => self.add_token(TokenType::Dot, String::from(".")),
+                '-' => self.add_token(TokenType::Minus, String::from("-")),
+                '+' => self.add_token(TokenType::Plus, String::from("+")),
+                '*' => self.add_token(TokenType::Star, String::from("*")),
+                ';' => self.add_token(TokenType::Semicolon, String::from(";")),
 
                 '!' => {
                     self.match_next_char(
@@ -89,7 +89,7 @@ impl Scanner<'_> {
                             // matched a comment line
                             while self.source.next() != Some('\n') {}
                         }
-                        _ => self.bipin(TokenType::Slash, String::from("/")),
+                        _ => self.add_token(TokenType::Slash, String::from("/")),
                     }
                 }
 
@@ -118,7 +118,7 @@ impl Scanner<'_> {
         loop {
             match self.source.next() {
                 Some('"') => {
-                    self.bipin(TokenType::String, lexeme.clone());
+                    self.add_token(TokenType::String, lexeme.clone());
                     break;
                 }
                 Some('\n') => {
@@ -162,7 +162,7 @@ impl Scanner<'_> {
                 }
             }
         }
-        self.bipin(TokenType::Number, lexeme);
+        self.add_token(TokenType::Number, lexeme);
     }
 
     fn match_keyword_or_identifier(&mut self, starting_char: char) {
@@ -198,10 +198,10 @@ impl Scanner<'_> {
         ]);
         match keywords.remove(lexeme.as_str()) {
             None => {
-                self.bipin(TokenType::Identifier, lexeme);
+                self.add_token(TokenType::Identifier, lexeme);
             }
             Some(keyword_token) => {
-                self.bipin(keyword_token, lexeme);
+                self.add_token(keyword_token, lexeme);
             }
         }
     }
@@ -217,15 +217,15 @@ impl Scanner<'_> {
         match self.source.peek() {
             Some(c) if c.clone() == to_match => {
                 self.source.next();
-                self.bipin(match_token, match_lexeme);
+                self.add_token(match_token, match_lexeme);
             }
             _ => {
-                self.bipin(unmatch_token, unmatch_lexeme);
+                self.add_token(unmatch_token, unmatch_lexeme);
             }
         }
     }
 
-    fn bipin(&mut self, token_type: TokenType, lexeme: String) {
+    fn add_token(&mut self, token_type: TokenType, lexeme: String) {
         self.tokens.push(Token::new(token_type, lexeme, self.line));
     }
 
