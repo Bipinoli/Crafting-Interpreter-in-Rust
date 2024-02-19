@@ -38,14 +38,7 @@ impl Parser {
         if self.is_at_end() {
             return false;
         }
-        // TODO
-        // match self.peek().token_type {
-        //     To
-        // }
-        // match self.peek().token_type {
-        //     token_type => true,
-        //     _ => false,
-        // }
+        &self.peek().token_type == token_type
     }
 
     fn advance(&mut self) -> Token {
