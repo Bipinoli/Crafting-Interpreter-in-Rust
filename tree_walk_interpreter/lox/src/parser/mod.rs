@@ -38,10 +38,14 @@ impl Parser {
         if self.is_at_end() {
             return false;
         }
-        match self.peek().token_type {
-            token_type => true,
-            _ => false,
-        }
+        // TODO
+        // match self.peek().token_type {
+        //     To
+        // }
+        // match self.peek().token_type {
+        //     token_type => true,
+        //     _ => false,
+        // }
     }
 
     fn advance(&mut self) -> Token {
@@ -66,35 +70,60 @@ impl Parser {
         self.tokens[self.current - 1].clone()
     }
 
-    fn expression(&self) -> Box<dyn Expr> {
+    fn expression(&mut self) -> Box<dyn Expr> {
         self.equality()
     }
 
-    fn equality(&self) -> Box<dyn Expr> {
+    fn equality(&mut self) -> Box<dyn Expr> {
         // equality -> comparison (('!=' | '==') comparison) *
-        let left = self.comparison();
-    }
-
-    fn comparison(&self) -> Box<dyn Expr> {
-        // comparison -> term ( ( > | >= | < | <= ) term)*
-    }
-
-    fn term(&self) -> Box<dyn Expr> {
-        // term -> factor (( - | +) factor)*
-    }
-
-    fn factor(&self) -> Box<dyn Expr> {
-        // factor -> unary ((/ | *) unary)*
-        let mut expr = Box::new(self.unary());
-        while self.match_token(vec![TokenType::Slash, TokenType::Star]) {
+        let mut expr = self.comparison();
+        while self.match_token(vec![TokenType::BangEqual, TokenType::EqualEqual]) {
             let operator = Operator::new(self.previous());
-            let right = Box::new(self.unary());
-            expr = Binary::new(expr, right, operator);
+            let right = self.comparison();
+            expr = Box::new(Binary::new(expr, right, operator));
         }
         expr
     }
 
-    fn unary(&self) -> Box<dyn Expr> {
+    fn comparison(&mut self) -> Box<dyn Expr> {
+        // comparison -> term ( ( > | >= | < | <= ) term)*
+        let mut expr = self.term();
+        while self.match_token(vec![
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual,
+        ]) {
+            let operator = Operator::new(self.previous());
+            let right = self.term();
+            expr = Box::new(Binary::new(expr, right, operator));
+        }
+        expr
+    }
+
+    fn term(&mut self) -> Box<dyn Expr> {
+        // term -> factor (( - | +) factor)*
+        let mut expr = self.factor();
+        while self.match_token(vec![TokenType::Minus, TokenType::Plus]) {
+            let operator = Operator::new(self.previous());
+            let right = self.factor();
+            expr = Box::new(Binary::new(expr, right, operator));
+        }
+        expr
+    }
+
+    fn factor(&mut self) -> Box<dyn Expr> {
+        // factor -> unary ((/ | *) unary)*
+        let mut expr = self.unary();
+        while self.match_token(vec![TokenType::Slash, TokenType::Star]) {
+            let operator = Operator::new(self.previous());
+            let right = self.unary();
+            expr = Box::new(Binary::new(expr, right, operator));
+        }
+        expr
+    }
+
+    fn unary(&mut self) -> Box<dyn Expr> {
         // unary -> ('!' | '-') unary | primary
         if self.match_token(vec![TokenType::Bang, TokenType::Minus]) {
             let operator = Operator::new(self.previous());
@@ -104,7 +133,7 @@ impl Parser {
         self.primary()
     }
 
-    fn primary(&self) -> Box<dyn Expr> {
+    fn primary(&mut self) -> Box<dyn Expr> {
         // primary -> NUMBER | STRING | 'true' | 'false' | 'nil' | '(' expression ')'
         if self.match_token(vec![
             TokenType::Number,
