@@ -1,4 +1,10 @@
-use crate::scanner::token::{Token, TokenType};
+use core::fmt;
+use std::error::Error;
+
+use crate::{
+    error,
+    scanner::token::{Token, TokenType},
+};
 
 use self::expression::{Binary, Expr, Grouping, Literal, Operator, Unary};
 
@@ -8,6 +14,17 @@ pub mod visitors;
 struct Parser {
     tokens: Vec<Token>,
     current: usize,
+}
+
+#[derive(Debug)]
+struct ParserError {
+    message: String,
+}
+impl Error for ParserError {}
+impl fmt::Display for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
 }
 
 impl Parser {
@@ -63,24 +80,24 @@ impl Parser {
         self.tokens[self.current - 1].clone()
     }
 
-    fn expression(&mut self) -> Box<dyn Expr> {
+    fn expression(&mut self) -> Result<Box<dyn Expr>, ParserError> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Box<dyn Expr> {
+    fn equality(&mut self) -> Result<Box<dyn Expr>, ParserError> {
         // equality -> comparison (('!=' | '==') comparison) *
-        let mut expr = self.comparison();
+        let mut expr = self.comparison().unwrap();
         while self.match_token(vec![TokenType::BangEqual, TokenType::EqualEqual]) {
             let operator = Operator::new(self.previous());
-            let right = self.comparison();
+            let right = self.comparison().unwrap();
             expr = Box::new(Binary::new(expr, right, operator));
         }
-        expr
+        Ok(expr)
     }
 
-    fn comparison(&mut self) -> Box<dyn Expr> {
+    fn comparison(&mut self) -> Result<Box<dyn Expr>, ParserError> {
         // comparison -> term ( ( > | >= | < | <= ) term)*
-        let mut expr = self.term();
+        let mut expr = self.term().unwrap();
         while self.match_token(vec![
             TokenType::Greater,
             TokenType::GreaterEqual,
@@ -88,45 +105,45 @@ impl Parser {
             TokenType::LessEqual,
         ]) {
             let operator = Operator::new(self.previous());
-            let right = self.term();
+            let right = self.term().unwrap();
             expr = Box::new(Binary::new(expr, right, operator));
         }
-        expr
+        Ok(expr)
     }
 
-    fn term(&mut self) -> Box<dyn Expr> {
+    fn term(&mut self) -> Result<Box<dyn Expr>, ParserError> {
         // term -> factor (( - | +) factor)*
-        let mut expr = self.factor();
+        let mut expr = self.factor().unwrap();
         while self.match_token(vec![TokenType::Minus, TokenType::Plus]) {
             let operator = Operator::new(self.previous());
-            let right = self.factor();
+            let right = self.factor().unwrap();
             expr = Box::new(Binary::new(expr, right, operator));
         }
-        expr
+        Ok(expr)
     }
 
-    fn factor(&mut self) -> Box<dyn Expr> {
+    fn factor(&mut self) -> Result<Box<dyn Expr>, ParserError> {
         // factor -> unary ((/ | *) unary)*
-        let mut expr = self.unary();
+        let mut expr = self.unary().unwrap();
         while self.match_token(vec![TokenType::Slash, TokenType::Star]) {
             let operator = Operator::new(self.previous());
-            let right = self.unary();
+            let right = self.unary().unwrap();
             expr = Box::new(Binary::new(expr, right, operator));
         }
-        expr
+        Ok(expr)
     }
 
-    fn unary(&mut self) -> Box<dyn Expr> {
+    fn unary(&mut self) -> Result<Box<dyn Expr>, ParserError> {
         // unary -> ('!' | '-') unary | primary
         if self.match_token(vec![TokenType::Bang, TokenType::Minus]) {
             let operator = Operator::new(self.previous());
-            let right = self.unary();
-            return Box::new(Unary::new(operator, right));
+            let right = self.unary().unwrap();
+            return Ok(Box::new(Unary::new(operator, right)));
         }
         self.primary()
     }
 
-    fn primary(&mut self) -> Box<dyn Expr> {
+    fn primary(&mut self) -> Result<Box<dyn Expr>, ParserError> {
         // primary -> NUMBER | STRING | 'true' | 'false' | 'nil' | '(' expression ')'
         if self.match_token(vec![
             TokenType::Number,
@@ -135,19 +152,53 @@ impl Parser {
             TokenType::False,
             TokenType::Nil,
         ]) {
-            return Box::new(Literal::new(self.previous()));
+            return Ok(Box::new(Literal::new(self.previous())));
         }
         if self.match_token(vec![TokenType::LeftParen]) {
-            let expr = self.expression();
+            let expr = self.expression().unwrap();
             // consume the matching bracket after that
-            match self.peek().token_type {
-                TokenType::RightParen => {
-                    self.advance();
-                }
-                _ => panic!("No matching bracket for ("),
-            }
-            return Box::new(Grouping::new(expr));
+            return if let TokenType::RightParen = self.peek().token_type {
+                self.advance();
+                Ok(Box::new(Grouping::new(expr)))
+            } else {
+                Err(self.report_error(self.peek(), "No matching bracket for (".to_string()))
+            };
         }
-        panic!("unknown token in primary category");
+        Err(ParserError {
+            message: "Invalid expression".to_string(),
+        })
+    }
+
+    fn report_error(&self, token: &Token, message: String) -> ParserError {
+        let location = if token.token_type == TokenType::Eof {
+            " at end".to_string()
+        } else {
+            format!(" at '{}'", token.lexeme)
+        };
+        error::report(token.line, message.clone(), location);
+        ParserError { message }
+    }
+
+    fn synchronize(&mut self) {
+        // after reporting error we should consume the tokens until the next statement
+        // to avoid reporting false errors
+        self.advance();
+        while !self.is_at_end() {
+            if self.previous().token_type == TokenType::Eof {
+                return;
+            }
+            match self.peek().token_type {
+                TokenType::Class
+                | TokenType::Fun
+                | TokenType::Return
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::While
+                | TokenType::If
+                | TokenType::Print => return,
+                _ => (),
+            }
+            self.advance();
+        }
     }
 }
