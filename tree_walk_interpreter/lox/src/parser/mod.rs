@@ -10,9 +10,10 @@ use self::expression::{Binary, Expr, Grouping, Literal, Operator, Unary};
 
 pub mod expression;
 pub mod visitors;
+pub use visitors::ast_printer;
 
-struct Parser {
-    tokens: Vec<Token>,
+pub struct Parser<'a> {
+    tokens: &'a Vec<Token>,
     current: usize,
 }
 
@@ -27,7 +28,7 @@ impl fmt::Display for ParserError {
     }
 }
 
-impl Parser {
+impl<'a> Parser<'a> {
     /// Recursive decent parser ///
     /// precendence rule:
     ///  1. primary : number | string | true | false | nil | ( expr )
@@ -37,8 +38,15 @@ impl Parser {
     ///  5. comparision -> < | <= | > | >=
     ///  6. equality -> != | ==
 
-    fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: &'a Vec<Token>) -> Self {
         Parser { tokens, current: 0 }
+    }
+
+    pub fn parse(&mut self) -> Box<dyn Expr> {
+        match self.expression() {
+            Ok(result) => result,
+            Err(e) => Box::new(Literal::new(Token::new(TokenType::Nil, String::new(), 0))),
+        }
     }
 
     fn match_token(&mut self, token_types: Vec<TokenType>) -> bool {
@@ -164,9 +172,7 @@ impl Parser {
                 Err(self.report_error(self.peek(), "No matching bracket for (".to_string()))
             };
         }
-        Err(ParserError {
-            message: "Invalid expression".to_string(),
-        })
+        Err(self.report_error(&self.previous(), "Invalid expression".to_string()))
     }
 
     fn report_error(&self, token: &Token, message: String) -> ParserError {

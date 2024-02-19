@@ -1,4 +1,7 @@
-use crate::scanner::Scanner;
+use crate::{
+    parser::{ast_printer::AstPrinterVisitor, Parser},
+    scanner::Scanner,
+};
 
 mod error;
 mod parser;
@@ -7,8 +10,11 @@ mod scanner;
 pub fn run(source: &String) {
     println!("running: {}", source);
     let mut scanner = Scanner::new(source);
-    dbg!(&scanner.source);
 
-    scanner.scan_tokens();
-    dbg!(scanner.tokens);
+    let tokens = scanner.scan_tokens();
+    let mut parser = Parser::new(tokens);
+
+    let expression = parser.parse();
+    let ast = expression.accept(Box::new(AstPrinterVisitor::new()));
+    println!("{ast}");
 }
