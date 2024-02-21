@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::vec;
 
 use crate::parser::expression::{Binary, Grouping, Literal, Unary};
@@ -14,30 +15,32 @@ impl AstPrinterVisitor {
 fn parenthesize(name: String, exprs: Vec<&Box<dyn Expr>>) -> String {
     let mut sub_rslts: Vec<String> = vec![];
     for expr in exprs {
-        sub_rslts.push((*expr).accept(Box::new(AstPrinterVisitor::new())));
+        let rslt = (*expr).accept(Box::new(AstPrinterVisitor::new()));
+        let rslt = *rslt.downcast::<String>().unwrap();
+        sub_rslts.push(rslt);
     }
     format!("({name} {})", sub_rslts.join(" "))
 }
 
 impl ExpressionVisitor for AstPrinterVisitor {
-    fn for_unary(&self, expr: &Unary) -> String {
+    fn for_unary(&self, expr: &Unary) -> Box<dyn Any> {
         let name = (*expr).operator.token.lexeme.clone();
         let right = &(*expr).right;
-        parenthesize(name, vec![right])
+        Box::new(parenthesize(name, vec![right]))
     }
-    fn for_binary(&self, expr: &Binary) -> String {
+    fn for_binary(&self, expr: &Binary) -> Box<dyn Any> {
         let name = (*expr).operator.token.lexeme.clone();
         let left = &expr.left;
         let right = &expr.right;
-        parenthesize(name, vec![left, right])
+        Box::new(parenthesize(name, vec![left, right]))
     }
-    fn for_literal(&self, expr: &Literal) -> String {
-        expr.token.lexeme.clone()
+    fn for_literal(&self, expr: &Literal) -> Box<dyn Any> {
+        Box::new(expr.token.lexeme.clone())
     }
-    fn for_grouping(&self, expr: &Grouping) -> String {
+    fn for_grouping(&self, expr: &Grouping) -> Box<dyn Any> {
         let name = "group".to_owned();
         let expr = &expr.expr;
-        parenthesize(name, vec![expr])
+        Box::new(parenthesize(name, vec![expr]))
     }
 }
 
@@ -70,6 +73,7 @@ mod tests {
         );
         let expected = "(* (- 123) (group 321))".to_owned();
         let ast = expr.accept(Box::new(AstPrinterVisitor::new()));
+        let ast = *ast.downcast::<String>().unwrap();
         println!("{ast}");
         assert_eq!(ast, expected);
     }

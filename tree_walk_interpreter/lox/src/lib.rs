@@ -16,5 +16,6 @@ pub fn run(source: &String) {
 
     let expression = parser.parse();
     let ast = expression.accept(Box::new(AstPrinterVisitor::new()));
+    let ast = *ast.downcast::<String>().unwrap();
     println!("{ast}");
 }
