@@ -62,6 +62,21 @@ impl Literal {
             _ => panic!("invalid token for literal"),
         }
     }
+    pub fn get_value(&self) -> (TokenType, Box<dyn Any>) {
+        let token_type = self.token.token_type;
+        let value: Box<dyn Any> = match self.token.token_type {
+            TokenType::Number => {
+                let n: f64 = self.token.lexeme.parse().unwrap();
+                Box::new(n)
+            }
+            TokenType::String => Box::new(self.token.lexeme.clone()),
+            TokenType::True => Box::new(true),
+            TokenType::False => Box::new(false),
+            TokenType::Nil => Box::new(()),
+            _ => panic!("invalid token in literal"),
+        };
+        (token_type, value)
+    }
 }
 
 pub struct Unary {
