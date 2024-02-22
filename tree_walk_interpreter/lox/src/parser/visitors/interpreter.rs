@@ -27,6 +27,24 @@ fn is_bool(val: &Box<dyn Any>) -> bool {
     (*val).type_id() == TypeId::of::<f64>()
 }
 
+fn is_equal(left: Box<dyn Any>, right: Box<dyn Any>) -> bool {
+    if is_nil(&left) && is_nil(&right) {
+        true
+    } else if is_nil(&left) || is_nil(&right) {
+        false
+    } else if is_string(&left) && is_string(&right) {
+        let left = *left.downcast::<String>().unwrap();
+        let right = *right.downcast::<String>().unwrap();
+        left == right
+    } else if is_f64(&left) && is_f64(&right) {
+        let left = *left.downcast::<f64>().unwrap();
+        let right = *right.downcast::<f64>().unwrap();
+        left == right
+    } else {
+        panic!("invalid operand in ==")
+    }
+}
+
 impl ExpressionVisitor for AstInterpreterVisitor {
     fn for_unary(&self, expr: &Unary) -> Box<dyn Any> {
         let right = evaluate(expr);
@@ -118,16 +136,76 @@ impl ExpressionVisitor for AstInterpreterVisitor {
                     panic!("<= operator needs numbers as operand")
                 }
             }
-            TokenType::EqualEqual => {}
-            TokenType::BangEqual => {}
+            TokenType::EqualEqual => Box::new(is_equal(left, right)),
+            TokenType::BangEqual => Box::new(!is_equal(left, right)),
             _ => panic!("invalid operator in binary"),
         }
     }
 
     fn for_literal(&self, expr: &Literal) -> Box<dyn Any> {
-        let value = expr.get_value();
-        value.1
+        expr.get_value()
     }
 
-    fn for_grouping(&self, expr: &Grouping) -> Box<dyn Any> {}
+    fn for_grouping(&self, expr: &Grouping) -> Box<dyn Any> {
+        evaluate(&*expr.expr)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        parser::expression::{Binary, Expr, Grouping, Literal, Operator, Unary},
+        scanner::token::{Token, TokenType},
+    };
+
+    use super::AstInterpreterVisitor;
+
+    #[test]
+    fn it_works() {
+        // 10 - (5 + 3) == (10 - (-10)) / (5 + 5)
+        let literal_10 = Literal::new(Token::new(TokenType::Number, "10".to_owned(), 1));
+        let value = literal_10.accept(Box::new(AstInterpreterVisitor::new()));
+        let value = *value.downcast::<f64>().unwrap();
+        assert_eq!(value, 10.0);
+
+        let literal_5 = Literal::new(Token::new(TokenType::Number, "5".to_owned(), 1));
+        let value = literal_5.accept(Box::new(AstInterpreterVisitor::new()));
+        let value = *value.downcast::<f64>().unwrap();
+        assert_eq!(value, 5.0);
+
+        let literal_3 = Literal::new(Token::new(TokenType::Number, "3".to_owned(), 1));
+        let value = literal_3.accept(Box::new(AstInterpreterVisitor::new()));
+        let value = *value.downcast::<f64>().unwrap();
+        assert_eq!(value, 3.0);
+
+        let bin_5_3 = Binary::new(
+            Box::new(literal_5),
+            Box::new(literal_3),
+            Operator::new(Token::new(TokenType::Plus, "+".to_owned(), 1)),
+        );
+        let value = bin_5_3.accept(Box::new(AstInterpreterVisitor::new()));
+        let value = *value.downcast::<f64>().unwrap();
+        assert_eq!(value, 8.0);
+        // let left = Binary::new(
+        //     Box::new(),
+        //     Box::new(Grouping::new(Box::new(Binary::new(
+        //         Box::new(Literal::new(Token::new(
+        //             TokenType::Number,
+        //             "5".to_owned(),
+        //             1,
+        //         ))),
+        //         Box::new(Literal::new(Token::new(
+        //             TokenType::Number,
+        //             "3".to_owned(),
+        //             1,
+        //         ))),
+        //         Operator::new(Token::new(TokenType::Plus, "+".to_owned(), 1)),
+        //     )))),
+        //     Operator::new(Token::new(TokenType::Minus, "-".to_owned(), 1)),
+        // );
+
+        // let left_val = left.accept(Box::new(AstInterpreterVisitor::new()));
+        // let left_val = *left_val.downcast::<f64>().unwrap();
+        // assert_eq!(left_val, 2.0);
+    }
 }
