@@ -15,16 +15,16 @@ fn evaluate(expr: &dyn Expr) -> Box<dyn Any> {
 }
 
 fn is_string(val: &Box<dyn Any>) -> bool {
-    (*val).type_id() == TypeId::of::<String>()
+    (**val).type_id() == TypeId::of::<String>()
 }
 fn is_nil(val: &Box<dyn Any>) -> bool {
-    (*val).type_id() == TypeId::of::<()>()
+    (**val).type_id() == TypeId::of::<()>()
 }
 fn is_f64(val: &Box<dyn Any>) -> bool {
-    (*val).type_id() == TypeId::of::<f64>()
+    (**val).type_id() == TypeId::of::<f64>()
 }
 fn is_bool(val: &Box<dyn Any>) -> bool {
-    (*val).type_id() == TypeId::of::<f64>()
+    (**val).type_id() == TypeId::of::<f64>()
 }
 
 fn is_equal(left: Box<dyn Any>, right: Box<dyn Any>) -> bool {
@@ -47,7 +47,7 @@ fn is_equal(left: Box<dyn Any>, right: Box<dyn Any>) -> bool {
 
 impl ExpressionVisitor for AstInterpreterVisitor {
     fn for_unary(&self, expr: &Unary) -> Box<dyn Any> {
-        let right = evaluate(expr);
+        let right = evaluate(&*expr.right);
         match expr.operator.token.token_type {
             TokenType::Minus => {
                 let value = *right.downcast::<f64>().unwrap();
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        // 10 - (5 + 3) == (10 - (-10)) / (5 + 5)
+        // 10 - (5 + 3) == (10 - (-10)) / (5 * 2)
         let literal_10 = Literal::new(Token::new(TokenType::Number, "10".to_owned(), 1));
         let value = literal_10.accept(Box::new(AstInterpreterVisitor::new()));
         let value = *value.downcast::<f64>().unwrap();
@@ -186,26 +186,69 @@ mod tests {
         let value = bin_5_3.accept(Box::new(AstInterpreterVisitor::new()));
         let value = *value.downcast::<f64>().unwrap();
         assert_eq!(value, 8.0);
-        // let left = Binary::new(
-        //     Box::new(),
-        //     Box::new(Grouping::new(Box::new(Binary::new(
-        //         Box::new(Literal::new(Token::new(
-        //             TokenType::Number,
-        //             "5".to_owned(),
-        //             1,
-        //         ))),
-        //         Box::new(Literal::new(Token::new(
-        //             TokenType::Number,
-        //             "3".to_owned(),
-        //             1,
-        //         ))),
-        //         Operator::new(Token::new(TokenType::Plus, "+".to_owned(), 1)),
-        //     )))),
-        //     Operator::new(Token::new(TokenType::Minus, "-".to_owned(), 1)),
-        // );
 
-        // let left_val = left.accept(Box::new(AstInterpreterVisitor::new()));
-        // let left_val = *left_val.downcast::<f64>().unwrap();
-        // assert_eq!(left_val, 2.0);
+        let left = Binary::new(
+            Box::new(literal_10),
+            Box::new(Grouping::new(Box::new(bin_5_3))),
+            Operator::new(Token::new(TokenType::Minus, "-".to_owned(), 1)),
+        );
+        let value = left.accept(Box::new(AstInterpreterVisitor::new()));
+        let value = *value.downcast::<f64>().unwrap();
+        assert_eq!(value, 2.0);
+
+        let bin_10_min_10 = Binary::new(
+            Box::new(Literal::new(Token::new(
+                TokenType::Number,
+                "10".to_owned(),
+                1,
+            ))),
+            Box::new(Unary::new(
+                Operator::new(Token::new(TokenType::Minus, "-".to_owned(), 1)),
+                Box::new(Literal::new(Token::new(
+                    TokenType::Number,
+                    "10".to_owned(),
+                    1,
+                ))),
+            )),
+            Operator::new(Token::new(TokenType::Minus, "-".to_owned(), 1)),
+        );
+        let value = bin_10_min_10.accept(Box::new(AstInterpreterVisitor::new()));
+        let value = *value.downcast::<f64>().unwrap();
+        assert_eq!(value, 20.0);
+
+        let five_2 = Binary::new(
+            Box::new(Literal::new(Token::new(
+                TokenType::Number,
+                "5".to_owned(),
+                1,
+            ))),
+            Box::new(Literal::new(Token::new(
+                TokenType::Number,
+                "2".to_owned(),
+                1,
+            ))),
+            Operator::new(Token::new(TokenType::Star, "*".to_owned(), 1)),
+        );
+        let value = five_2.accept(Box::new(AstInterpreterVisitor::new()));
+        let value = *value.downcast::<f64>().unwrap();
+        assert_eq!(value, 10.0);
+
+        let right = Binary::new(
+            Box::new(bin_10_min_10),
+            Box::new(five_2),
+            Operator::new(Token::new(TokenType::Slash, "/".to_owned(), 1)),
+        );
+        let value = right.accept(Box::new(AstInterpreterVisitor::new()));
+        let value = *value.downcast::<f64>().unwrap();
+        assert_eq!(value, 2.0);
+
+        let expr = Binary::new(
+            Box::new(left),
+            Box::new(right),
+            Operator::new(Token::new(TokenType::EqualEqual, "==".to_owned(), 1)),
+        );
+        let value = expr.accept(Box::new(AstInterpreterVisitor::new()));
+        let value = *value.downcast::<bool>().unwrap();
+        assert_eq!(value, true);
     }
 }
