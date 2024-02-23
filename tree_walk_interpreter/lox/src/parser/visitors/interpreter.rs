@@ -79,6 +79,10 @@ fn is_equal(left: Box<dyn Any>, right: Box<dyn Any>) -> Result<bool, ()> {
         let left = *left.downcast::<f64>().unwrap();
         let right = *right.downcast::<f64>().unwrap();
         Ok(left == right)
+    } else if is_bool(&left) && is_bool(&right) {
+        let left = *left.downcast::<bool>().unwrap();
+        let right = *right.downcast::<bool>().unwrap();
+        Ok(left == right)
     } else {
         Err(())
     }
