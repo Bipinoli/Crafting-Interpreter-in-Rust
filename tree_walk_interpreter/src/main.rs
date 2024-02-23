@@ -30,6 +30,7 @@ fn run_file(file_path: &String) {
 }
 
 fn run_prompt() {
+    println!("Lox REPL (enter exit() / q to exit)");
     loop {
         print!("> ");
         let mut input = String::new();
@@ -39,6 +40,9 @@ fn run_prompt() {
             .expect("can not read user input");
 
         if input.trim() == String::from("exit()") {
+            break;
+        }
+        if input.trim() == String::from("q") {
             break;
         }
         lox_core::run(&input);

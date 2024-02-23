@@ -1,5 +1,7 @@
 use crate::{
-    parser::{ast_printer::AstPrinterVisitor, Parser},
+    parser::{
+        ast_printer::AstPrinterVisitor, visitors::interpreter::AstInterpreterVisitor, Parser,
+    },
     scanner::Scanner,
 };
 
@@ -19,5 +21,8 @@ pub fn run(source: &String) {
         .accept(Box::new(AstPrinterVisitor::new()))
         .unwrap();
     let ast = *ast.downcast::<String>().unwrap();
-    println!("{ast}");
+    println!("AST: {ast}");
+
+    let interpreter = AstInterpreterVisitor::new();
+    interpreter.interpret(&*expression);
 }

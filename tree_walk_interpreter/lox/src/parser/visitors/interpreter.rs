@@ -21,8 +21,31 @@ impl AstInterpreterVisitor {
     pub fn new() -> Self {
         AstInterpreterVisitor {}
     }
-    pub fn interpret(expr: &dyn Expr) {
-        let val = evaluate(expr);
+    pub fn interpret(&self, expr: &dyn Expr) {
+        match evaluate(expr) {
+            Ok(result) => {
+                let result = self.stringify_result(result);
+                println!("{}", result);
+            }
+            Err(e) => {
+                println!("{}", e);
+            }
+        }
+    }
+    fn stringify_result(&self, result: Box<dyn Any>) -> String {
+        if is_nil(&result) {
+            return String::from("Nil");
+        }
+        if is_f64(&result) {
+            let result = *result.downcast::<f64>().unwrap();
+            return format!("{}", result);
+        }
+        if is_bool(&result) {
+            let result = *result.downcast::<bool>().unwrap();
+            return format!("{}", result);
+        }
+        let result = *result.downcast::<String>().unwrap();
+        result
     }
 }
 
