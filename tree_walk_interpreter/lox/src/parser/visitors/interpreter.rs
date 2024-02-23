@@ -63,7 +63,7 @@ fn is_f64(val: &Box<dyn Any>) -> bool {
     (**val).type_id() == TypeId::of::<f64>()
 }
 fn is_bool(val: &Box<dyn Any>) -> bool {
-    (**val).type_id() == TypeId::of::<f64>()
+    (**val).type_id() == TypeId::of::<bool>()
 }
 
 fn is_equal(left: Box<dyn Any>, right: Box<dyn Any>) -> Result<bool, ()> {
