@@ -1,4 +1,5 @@
 use crate::parser::expression::{Binary, Expr, ExpressionVisitor, Grouping, Literal, Unary};
+use crate::parser::statement::Stmt;
 use crate::scanner::token::TokenType;
 use core::fmt;
 use std::any::{Any, TypeId};
@@ -21,36 +22,35 @@ impl AstInterpreterVisitor {
     pub fn new() -> Self {
         AstInterpreterVisitor {}
     }
-    pub fn interpret(&self, expr: &dyn Expr) {
-        match evaluate(expr) {
-            Ok(result) => {
-                let result = self.stringify_result(result);
-                println!("{}", result);
-            }
-            Err(e) => {
-                println!("{}", e);
-            }
+    pub fn interpret(&self, stmts: Vec<Stmt>) {
+        for stmt in stmts {
+            self.execute(&stmt)
         }
     }
-    fn stringify_result(&self, result: Box<dyn Any>) -> String {
-        if is_nil(&result) {
-            return String::from("Nil");
-        }
-        if is_f64(&result) {
-            let result = *result.downcast::<f64>().unwrap();
-            return format!("{}", result);
-        }
-        if is_bool(&result) {
-            let result = *result.downcast::<bool>().unwrap();
-            return format!("{}", result);
-        }
-        let result = *result.downcast::<String>().unwrap();
-        result
-    }
-}
 
-fn evaluate(expr: &dyn Expr) -> Result<Box<dyn Any>, Box<dyn Error>> {
-    expr.accept(Box::new(AstInterpreterVisitor::new()))
+    fn execute(&self, stmt: &Stmt) {
+        match stmt {
+            Stmt::ExprStmt(expr) => match self.evaluate(&**expr) {
+                Ok(result) => (),
+                Err(e) => {
+                    println!("{}", e);
+                }
+            },
+            Stmt::PrintStmt(expr) => match self.evaluate(&**expr) {
+                Ok(result) => {
+                    let result = stringify_result(result);
+                    println!("{}", result);
+                }
+                Err(e) => {
+                    println!("{}", e);
+                }
+            },
+        }
+    }
+
+    fn evaluate(&self, expr: &dyn Expr) -> Result<Box<dyn Any>, Box<dyn Error>> {
+        expr.accept(Box::new(AstInterpreterVisitor::new()))
+    }
 }
 
 fn is_string(val: &Box<dyn Any>) -> bool {
@@ -65,7 +65,6 @@ fn is_f64(val: &Box<dyn Any>) -> bool {
 fn is_bool(val: &Box<dyn Any>) -> bool {
     (**val).type_id() == TypeId::of::<bool>()
 }
-
 fn is_equal(left: Box<dyn Any>, right: Box<dyn Any>) -> Result<bool, ()> {
     if is_nil(&left) && is_nil(&right) {
         Ok(true)
@@ -87,10 +86,25 @@ fn is_equal(left: Box<dyn Any>, right: Box<dyn Any>) -> Result<bool, ()> {
         Err(())
     }
 }
+fn stringify_result(result: Box<dyn Any>) -> String {
+    if is_nil(&result) {
+        return String::from("Nil");
+    }
+    if is_f64(&result) {
+        let result = *result.downcast::<f64>().unwrap();
+        return format!("{}", result);
+    }
+    if is_bool(&result) {
+        let result = *result.downcast::<bool>().unwrap();
+        return format!("{}", result);
+    }
+    let result = *result.downcast::<String>().unwrap();
+    result
+}
 
 impl ExpressionVisitor for AstInterpreterVisitor {
     fn for_unary(&self, expr: &Unary) -> Result<Box<dyn Any>, Box<dyn Error>> {
-        let right = evaluate(&*expr.right);
+        let right = self.evaluate(&*expr.right);
         if let Err(e) = right {
             return Err(e);
         }
@@ -129,8 +143,8 @@ impl ExpressionVisitor for AstInterpreterVisitor {
     }
 
     fn for_binary(&self, expr: &Binary) -> Result<Box<dyn Any>, Box<dyn Error>> {
-        let left = evaluate(&*expr.left);
-        let right = evaluate(&*expr.right);
+        let left = self.evaluate(&*expr.left);
+        let right = self.evaluate(&*expr.right);
         if let Err(e) = left {
             return Err(e);
         }
@@ -270,7 +284,7 @@ impl ExpressionVisitor for AstInterpreterVisitor {
     }
 
     fn for_grouping(&self, expr: &Grouping) -> Result<Box<dyn Any>, Box<dyn Error>> {
-        evaluate(&*expr.expr)
+        self.evaluate(&*expr.expr)
     }
 }
 

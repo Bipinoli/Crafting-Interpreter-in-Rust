@@ -1,7 +1,5 @@
 use crate::{
-    parser::{
-        ast_printer::AstPrinterVisitor, visitors::interpreter::AstInterpreterVisitor, Parser,
-    },
+    parser::{visitors::interpreter::AstInterpreterVisitor, Parser},
     scanner::Scanner,
 };
 
@@ -15,14 +13,7 @@ pub fn run(source: &String) {
 
     let tokens = scanner.scan_tokens();
     let mut parser = Parser::new(tokens);
-
-    let expression = parser.parse();
-    let ast = expression
-        .accept(Box::new(AstPrinterVisitor::new()))
-        .unwrap();
-    let ast = *ast.downcast::<String>().unwrap();
-    println!("AST: {ast}");
-
+    let statements = parser.parse();
     let interpreter = AstInterpreterVisitor::new();
-    interpreter.interpret(&*expression);
+    interpreter.interpret(statements);
 }
