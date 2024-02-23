@@ -1,14 +1,15 @@
 use core::fmt;
 use std::error::Error;
 
-use crate::{
-    error,
-    scanner::token::{Token, TokenType},
+use crate::scanner::token::{Token, TokenType};
+
+use self::{
+    expression::{Binary, Expr, Grouping, Literal, Operator, Unary},
+    statement::Stmt,
 };
 
-use self::expression::{Binary, Expr, Grouping, Literal, Operator, Unary};
-
 pub mod expression;
+pub mod statement;
 pub mod visitors;
 pub use visitors::ast_printer;
 
@@ -24,7 +25,7 @@ struct ParserError {
 impl Error for ParserError {}
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message)
+        write!(f, "[ParserError] {}", self.message)
     }
 }
 
@@ -42,11 +43,52 @@ impl<'a> Parser<'a> {
         Parser { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Box<dyn Expr> {
-        match self.expression() {
-            Ok(result) => result,
-            Err(_e) => Box::new(Literal::new(Token::new(TokenType::Nil, String::new(), 0))),
+    pub fn parse(&mut self) -> Vec<Stmt> {
+        let mut stmts: Vec<Stmt> = vec![];
+        while !self.is_at_end() {
+            if self.match_token(vec![TokenType::Print]) {
+                match self.statement() {
+                    Ok(result) => {
+                        stmts.push(Stmt::PrintStmt(result));
+                    }
+                    Err(e) => {
+                        println!("{e}");
+                    }
+                }
+            } else {
+                match self.statement() {
+                    Ok(result) => {
+                        stmts.push(Stmt::ExprStmt(result));
+                    }
+                    Err(e) => {
+                        println!("{e}");
+                    }
+                }
+            }
         }
+        stmts
+    }
+
+    fn statement(&mut self) -> Result<Box<dyn Expr>, ParserError> {
+        let expr = self.expression();
+        if !self.consume(TokenType::Semicolon) {
+            return Err(self.build_parser_error(
+                self.peek(),
+                "statement must end with semicolon ';'".to_string(),
+            ));
+        }
+        match expr {
+            Ok(result) => Ok(result),
+            Err(parser_error) => Err(parser_error),
+        }
+    }
+
+    fn consume(&mut self, to_consume: TokenType) -> bool {
+        if self.peek().token_type == to_consume {
+            self.advance();
+            return true;
+        }
+        false
     }
 
     fn match_token(&mut self, token_types: Vec<TokenType>) -> bool {
@@ -165,23 +207,28 @@ impl<'a> Parser<'a> {
         if self.match_token(vec![TokenType::LeftParen]) {
             let expr = self.expression().unwrap();
             // consume the matching bracket after that
-            return if let TokenType::RightParen = self.peek().token_type {
-                self.advance();
-                Ok(Box::new(Grouping::new(expr)))
-            } else {
-                Err(self.report_error(self.peek(), "No matching bracket for (".to_string()))
-            };
+            if self.consume(TokenType::RightParen) {
+                return Ok(Box::new(Grouping::new(expr)));
+            }
+            return Err(
+                self.build_parser_error(self.peek(), "No matching bracket for (".to_string())
+            );
         }
-        Err(self.report_error(&self.previous(), "Invalid expression".to_string()))
+        Err(self.build_parser_error(&self.previous(), "Invalid expression".to_string()))
     }
 
-    fn report_error(&self, token: &Token, message: String) -> ParserError {
+    fn build_parser_error(&self, token: &Token, message: String) -> ParserError {
         let location = if token.token_type == TokenType::Eof {
             " at end".to_string()
         } else {
             format!(" at '{}'", token.lexeme)
         };
-        error::report(token.line, message.clone(), location);
+        let message = format!(
+            " [line {}] Error {}: {}",
+            token.line,
+            location,
+            message.clone()
+        );
         ParserError { message }
     }
 
