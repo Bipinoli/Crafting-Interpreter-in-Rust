@@ -93,8 +93,17 @@ impl ExpressionVisitor for AstInterpreterVisitor {
         let right = right.unwrap();
         match expr.operator.token.token_type {
             TokenType::Minus => {
-                let value = *right.downcast::<f64>().unwrap();
-                Ok(Box::new(-value))
+                if is_f64(&right) {
+                    let value = *right.downcast::<f64>().unwrap();
+                    Ok(Box::new(-value))
+                } else {
+                    Err(Box::new(RuntimeError {
+                        message: format!(
+                            "[RuntimeError] line:{} '-' only works with number",
+                            expr.operator.token.line,
+                        ),
+                    }))
+                }
             }
             TokenType::Bang => {
                 if is_bool(&right) {
