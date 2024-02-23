@@ -75,7 +75,6 @@ mod tests {
         let expected = "(* (- 123) (group 321))".to_owned();
         let ast = expr.accept(Box::new(AstPrinterVisitor::new())).unwrap();
         let ast = *ast.downcast::<String>().unwrap();
-        println!("{ast}");
         assert_eq!(ast, expected);
     }
 }

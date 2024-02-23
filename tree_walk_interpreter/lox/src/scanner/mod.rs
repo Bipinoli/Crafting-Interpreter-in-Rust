@@ -249,3 +249,40 @@ impl Scanner<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn single_letter() {
+        let source = "a".to_string();
+        let mut scanner = Scanner::new(&source);
+        let tokens = scanner.scan_tokens();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].token_type, TokenType::Identifier);
+        assert_eq!(tokens[0].lexeme, "a".to_string());
+        assert_eq!(tokens[1].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn simple_expression() {
+        let source = "4 - 6 / 3 == 2".to_string();
+        let mut scanner = Scanner::new(&source);
+        let tokens = scanner.scan_tokens();
+        assert_eq!(tokens.len(), 8);
+        assert_eq!(tokens[0].token_type, TokenType::Number);
+        assert_eq!(tokens[0].lexeme, "4".to_string());
+        assert_eq!(tokens[1].token_type, TokenType::Minus);
+        assert_eq!(tokens[1].lexeme, "-".to_string());
+        assert_eq!(tokens[2].token_type, TokenType::Number);
+        assert_eq!(tokens[2].lexeme, "6".to_string());
+        assert_eq!(tokens[3].token_type, TokenType::Slash);
+        assert_eq!(tokens[3].lexeme, "/".to_string());
+        assert_eq!(tokens[4].token_type, TokenType::Number);
+        assert_eq!(tokens[4].lexeme, "3".to_string());
+        assert_eq!(tokens[5].token_type, TokenType::EqualEqual);
+        assert_eq!(tokens[5].lexeme, "==".to_string());
+        assert_eq!(tokens[6].token_type, TokenType::Number);
+        assert_eq!(tokens[6].lexeme, "2".to_string());
+    }
+}

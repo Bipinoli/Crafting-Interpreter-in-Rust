@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Box<dyn Expr> {
         match self.expression() {
             Ok(result) => result,
-            Err(e) => Box::new(Literal::new(Token::new(TokenType::Nil, String::new(), 0))),
+            Err(_e) => Box::new(Literal::new(Token::new(TokenType::Nil, String::new(), 0))),
         }
     }
 
@@ -206,5 +206,20 @@ impl<'a> Parser<'a> {
             }
             self.advance();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let tokens = vec![
+            Token::new(TokenType::Identifier, "a".to_string(), 1),
+            Token::new(TokenType::Eof, "".to_string(), 1),
+        ];
+        let mut parser = Parser::new(&tokens);
+        let expression = parser.parse();
     }
 }
