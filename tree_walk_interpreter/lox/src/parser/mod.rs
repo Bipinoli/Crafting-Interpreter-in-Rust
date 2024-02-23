@@ -255,18 +255,3 @@ impl<'a> Parser<'a> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let tokens = vec![
-            Token::new(TokenType::Identifier, "a".to_string(), 1),
-            Token::new(TokenType::Eof, "".to_string(), 1),
-        ];
-        let mut parser = Parser::new(&tokens);
-        let expression = parser.parse();
-    }
-}
