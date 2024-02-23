@@ -1,15 +1,16 @@
 use crate::scanner::token::{Token, TokenType};
 use std::any::Any;
+use std::error::Error;
 
 pub trait ExpressionVisitor {
-    fn for_unary(&self, expr: &Unary) -> Box<dyn Any>;
-    fn for_binary(&self, expr: &Binary) -> Box<dyn Any>;
-    fn for_grouping(&self, expr: &Grouping) -> Box<dyn Any>;
-    fn for_literal(&self, expr: &Literal) -> Box<dyn Any>;
+    fn for_unary(&self, expr: &Unary) -> Result<Box<dyn Any>, Box<dyn Error>>;
+    fn for_binary(&self, expr: &Binary) -> Result<Box<dyn Any>, Box<dyn Error>>;
+    fn for_grouping(&self, expr: &Grouping) -> Result<Box<dyn Any>, Box<dyn Error>>;
+    fn for_literal(&self, expr: &Literal) -> Result<Box<dyn Any>, Box<dyn Error>>;
 }
 
 pub trait Expr {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Box<dyn Any>;
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Result<Box<dyn Any>, Box<dyn Error>>;
 }
 
 pub struct Operator {
@@ -62,17 +63,17 @@ impl Literal {
             _ => panic!("invalid token for literal"),
         }
     }
-    pub fn get_value(&self) -> Box<dyn Any> {
+    pub fn get_value(&self) -> Result<Box<dyn Any>, ()> {
         match self.token.token_type {
             TokenType::Number => {
                 let n: f64 = self.token.lexeme.parse().unwrap();
-                Box::new(n)
+                Ok(Box::new(n))
             }
-            TokenType::String => Box::new(self.token.lexeme.clone()),
-            TokenType::True => Box::new(true),
-            TokenType::False => Box::new(false),
-            TokenType::Nil => Box::new(()),
-            _ => panic!("invalid token in literal"),
+            TokenType::String => Ok(Box::new(self.token.lexeme.clone())),
+            TokenType::True => Ok(Box::new(true)),
+            TokenType::False => Ok(Box::new(false)),
+            TokenType::Nil => Ok(Box::new(())),
+            _ => Err(()),
         }
     }
 }
@@ -97,25 +98,25 @@ impl Grouping {
 }
 
 impl Expr for Binary {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Box<dyn Any> {
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Result<Box<dyn Any>, Box<dyn Error>> {
         visitor.for_binary(self)
     }
 }
 
 impl Expr for Unary {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Box<dyn Any> {
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Result<Box<dyn Any>, Box<dyn Error>> {
         visitor.for_unary(self)
     }
 }
 
 impl Expr for Grouping {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Box<dyn Any> {
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Result<Box<dyn Any>, Box<dyn Error>> {
         visitor.for_grouping(self)
     }
 }
 
 impl Expr for Literal {
-    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Box<dyn Any> {
+    fn accept(&self, visitor: Box<dyn ExpressionVisitor>) -> Result<Box<dyn Any>, Box<dyn Error>> {
         visitor.for_literal(self)
     }
 }
