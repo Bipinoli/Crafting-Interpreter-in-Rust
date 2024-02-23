@@ -188,7 +188,6 @@ impl<'a> Parser<'a> {
     fn synchronize(&mut self) {
         // after reporting error we should consume the tokens until the next statement
         // to avoid reporting false errors
-        //
         self.advance();
         while !self.is_at_end() {
             if self.previous().token_type == TokenType::Eof {
