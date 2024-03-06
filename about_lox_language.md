@@ -1,4 +1,4 @@
-### Lox programming language
+### [Lox programming language](https://craftinginterpreters.com/the-lox-language.html)
 
 #### Example program: (https://benhoyt.com/writings/loxlox/)
 ```
