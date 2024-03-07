@@ -9,5 +9,5 @@ edition = "2021"
 
 
 [features]
-# default = [ "debug_exec_trace" ]
+default = [ "debug_exec_trace" ]
 debug_exec_trace = []

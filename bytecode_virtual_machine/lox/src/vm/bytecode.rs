@@ -7,6 +7,11 @@ use std::usize;
 pub enum Opcode {
     Ret = 0,
     Const = 1,
+    Neg = 2,
+    Add = 3,
+    Sub = 4,
+    Mul = 5,
+    Div = 6,
 }
 impl TryFrom<u8> for Opcode {
     type Error = ();
@@ -14,6 +19,11 @@ impl TryFrom<u8> for Opcode {
         match value {
             0 => Ok(Opcode::Ret),
             1 => Ok(Opcode::Const),
+            2 => Ok(Opcode::Neg),
+            3 => Ok(Opcode::Add),
+            4 => Ok(Opcode::Sub),
+            5 => Ok(Opcode::Mul),
+            6 => Ok(Opcode::Div),
             _ => Err(()),
         }
     }
@@ -21,7 +31,7 @@ impl TryFrom<u8> for Opcode {
 
 pub struct ByteCode {
     code: Vec<u8>,
-    data: Vec<u8>,
+    data: Vec<f64>,
     line_info: Vec<u32>,
 }
 impl ByteCode {
@@ -36,7 +46,7 @@ impl ByteCode {
         self.code.push(byte);
         self.line_info.push(line);
     }
-    pub fn write_data(&mut self, byte: u8) {
+    pub fn write_data(&mut self, byte: f64) {
         self.data.push(byte);
     }
     pub fn fetch_instruction(&self, ip: &mut usize) -> Opcode {
@@ -55,7 +65,7 @@ impl ByteCode {
         *ip += 1;
         retval
     }
-    pub fn fetch_data(&self, addr: usize) -> u8 {
+    pub fn fetch_data(&self, addr: usize) -> f64 {
         if addr >= self.data.len() {
             panic!("attempted to fetch data outside the data section boundary");
         }
@@ -84,6 +94,11 @@ impl ByteCode {
         match opcode.unwrap() {
             Opcode::Ret => self.simple_instruction("Ret", offset),
             Opcode::Const => self.const_instruction("Const", offset),
+            Opcode::Neg => self.simple_instruction("Neg", offset),
+            Opcode::Add => self.simple_instruction("Add", offset),
+            Opcode::Sub => self.simple_instruction("Sub", offset),
+            Opcode::Mul => self.simple_instruction("Mul", offset),
+            Opcode::Div => self.simple_instruction("Div", offset),
         }
     }
     fn simple_instruction(&self, name: &str, offset: usize) -> usize {
