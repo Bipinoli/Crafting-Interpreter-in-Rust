@@ -6,3 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+
+[features]
+# default = [ "debug_exec_trace" ]
+debug_exec_trace = []

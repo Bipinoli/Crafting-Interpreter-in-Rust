@@ -39,6 +39,28 @@ impl ByteCode {
     pub fn write_data(&mut self, byte: u8) {
         self.data.push(byte);
     }
+    pub fn fetch_instruction(&self, ip: &mut usize) -> Opcode {
+        if *ip >= self.code.len() {
+            panic!("attempted to fetch instruction from outside the code section");
+        }
+        let retval = Opcode::try_from(self.code[*ip]).expect("Not a valid opcode at the given ip");
+        *ip += 1;
+        retval
+    }
+    pub fn fetch_operand(&self, ip: &mut usize) -> u8 {
+        if *ip >= self.code.len() {
+            panic!("attempted to fetch operand from outside the code section");
+        }
+        let retval = self.code[*ip];
+        *ip += 1;
+        retval
+    }
+    pub fn fetch_data(&self, addr: usize) -> u8 {
+        if addr >= self.data.len() {
+            panic!("attempted to fetch data outside the data section boundary");
+        }
+        self.data[addr]
+    }
     pub fn disasm(&self, name: &str) {
         println!("====== Code section ({name}) ======");
         let mut offset = 0;
@@ -53,7 +75,7 @@ impl ByteCode {
             println!("{:#06x} {}", i, item);
         }
     }
-    fn disasm_instruction(&self, offset: usize) -> usize {
+    pub fn disasm_instruction(&self, offset: usize) -> usize {
         print!("{:#06x} ", offset);
         let opcode = Opcode::try_from(self.code[offset]);
         if let Err(_) = opcode {
