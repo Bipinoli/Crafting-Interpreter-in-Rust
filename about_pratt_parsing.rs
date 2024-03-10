@@ -36,32 +36,13 @@ impl Lexer {
             cursor: 0
         }
     }
-    fn next(&mut self) -> Token {
-        let retval = self.tokens[self.cursor];
+    fn next(&mut self) -> &Token {
+        let retval = &self.tokens[self.cursor];
         self.cursor += 1;
         retval
     }
-    fn next_operator(&mut self) -> Token {
-        let retval = match self.tokens[self.cursor] {
-            Token::Op(c) => Token::Op(c),
-            _ => panic!("not operator"),
-        };
-        self.cursor += 1;
-        retval
-    }
-    fn next_operand(&mut self) -> Token {
-        let retval = match self.tokens[self.cursor] {
-            Token::Num(c) => Token::Num(c),
-            _ => panic!("not operand"),
-        };
-        self.cursor += 1;
-        retval
-    }
-    fn peek_next_operator(&self) -> Token {
-        match self.tokens[self.cursor] {
-            Token::Op(c) => Token::Op(c),
-            _ => panic!("not operator")
-        }
+    fn peek(&self) -> &Token {
+        &self.tokens[self.cursor]
     }
 }
 
@@ -74,7 +55,7 @@ struct BindingPower {
     left: f32,
     right: f32,
 }
-fn get_binding_power(operator: Token) -> BindingPower {
+fn get_binding_power(operator: &Token) -> BindingPower {
     match operator {
         Token::Op(op_char) => {
             match op_char {
@@ -89,38 +70,37 @@ fn get_binding_power(operator: Token) -> BindingPower {
     }
 }
 
-enum ParseTree {
+enum ParseTree<'a> {
     Leaf(Token),
-    Branch { operator: Token, left: Box<ParseTree>, right: Box<ParseTree> },
+    Branch { operator: Token, left: &'a ParseTree<'a>, right: &'a ParseTree<'a> },
 }
 
 fn pratt_parse(lexer: &Lexer) {
+    todo!("parse() doesn't consume everythign -- make sure to run that until END");
 }
  
-fn parse(left: Option<ParseTree>, lexer: &mut Lexer) -> ParseTree {
+fn parse(existing_left: Option<ParseTree<'a>>, lexer: &mut Lexer) -> ParseTree<'a> {
     let token = lexer.next();
     if let Token::End = token {
-        return match left {
+        return match existing_left {
             Some(v) => v,
             None => ParseTree::Leaf(Token::End),
         };
     }
-    if let Token::Op = token {
+    if let Token::Op(_) = token {
         panic!("first token can't be an operator");
     }
-    let left = match left {
-        Some(v) => v,
-        None => token,
+    let left_operator = match existing_left {
+        Some(left) => (left, token),
+        None => (ParseTree::Leaf(token), lexer.next())
     };
-    let operator = match left {
-        Some(v) => token,
-        None => lexer.next_operator();
-    }
-    let mut right: ParseTree = ParseTree::Leaf(lexer.next_operand());
+    let left = left_operator.0;
+    let operator = left_operator.1;
+    let mut right: ParseTree = ParseTree::Leaf(lexer.next());
     loop {
-        let next_operator = lexer.peek_next_operator();
-        if get_binding_power(operator).right >= get_binding_power(next_operator).left {
-            return ParseTree::Branch(operator, left: ParseTree::Leaf(left), right);
+        let next_operator = lexer.peek();
+        if get_binding_power(*operator).right >= get_binding_power(next_operator).left {
+            return ParseTree::Branch { operator: operator, left: Box::new(left), right: Box::new(right)};
         }
         right = parse(Some(right), lexer);
     }
