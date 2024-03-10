@@ -25,55 +25,104 @@ enum Token {
     End
 }
 
+struct Lexer {
+    tokens: Vec<Token>,
+    cursor: usize,
+}
+impl Lexer {
+    fn new(tokens: Vec<Token>) -> Self {
+        Lexer {
+            tokens: tokens, 
+            cursor: 0
+        }
+    }
+    fn next(&mut self) -> Token {
+        let retval = self.tokens[self.cursor];
+        self.cursor += 1;
+        retval
+    }
+    fn next_operator(&mut self) -> Token {
+        let retval = match self.tokens[self.cursor] {
+            Token::Op(c) => Token::Op(c),
+            _ => panic!("not operator"),
+        };
+        self.cursor += 1;
+        retval
+    }
+    fn next_operand(&mut self) -> Token {
+        let retval = match self.tokens[self.cursor] {
+            Token::Num(c) => Token::Num(c),
+            _ => panic!("not operand"),
+        };
+        self.cursor += 1;
+        retval
+    }
+    fn peek_next_operator(&self) -> Token {
+        match self.tokens[self.cursor] {
+            Token::Op(c) => Token::Op(c),
+            _ => panic!("not operator")
+        }
+    }
+}
+
+
+
 // Binding power as per precedence rule (div/mult > add/sub)
 // for 2 + 3 + 4 we want (2 + 3) + 4
 // so the operator should have slighly higher binding force towards the right
-fn get_binding_power(operator: char) -> (f32, f32) {
+struct BindingPower {
+    left: f32,
+    right: f32,
+}
+fn get_binding_power(operator: Token) -> BindingPower {
     match operator {
-        '-' => (1.0, 1.1),
-        '+' => (2.0, 2.1),
-        '*' => (3.0, 3.1),
-        '/' => (4.0, 4.1),
-        _ => panic!("unknown operator"),
+        Token::Op(op_char) => {
+            match op_char {
+                '-' => BindingPower {left: 1.0, right: 1.1},
+                '+' => BindingPower {left: 2.0, right: 2.1},
+                '*' => BindingPower {left: 3.0, right: 3.1},
+                '/' => BindingPower {left: 4.0, right: 4.1},
+                _ => panic!("unknown operator"),
+            }
+        }
+        _ => panic!("only operators have binding power")
     }
 }
 
 enum ParseTree {
-    Leaf(f64),
-    Branch(char, Vec<ParseTree>),
+    Leaf(Token),
+    Branch { operator: Token, left: Box<ParseTree>, right: Box<ParseTree> },
 }
 
-fn parse(cursor: usize, tokens: &Vec<Token>, binding: f32) -> ParseTree {
-    let left = get_operand(&mut cursor, tokens);
-    let operator = get_operator(&mut cursor, tokens);
-    let right = get_operand(&mut cursor, tokens);
-    let next_operator = next_operator(cursor, tokens);
-
+fn pratt_parse(lexer: &Lexer) {
 }
-
-
-fn get_operand(cursor: &mut usize, tokens: &Vec<Token>) -> f64 {
-    let retval = match tokens[*cursor] {
-        Token::Op(c) => panic!("expected number but found operator '{}'", c),
-        Token::Num(n) => n
+ 
+fn parse(left: Option<ParseTree>, lexer: &mut Lexer) -> ParseTree {
+    let token = lexer.next();
+    if let Token::End = token {
+        return match left {
+            Some(v) => v,
+            None => ParseTree::Leaf(Token::End),
+        };
+    }
+    if let Token::Op = token {
+        panic!("first token can't be an operator");
+    }
+    let left = match left {
+        Some(v) => v,
+        None => token,
     };
-    *cursor += 1;
-    retval
-}
-
-fn get_operator(cursor: &mut usize, tokens: &Vec<Token>) -> char {
-    let retval = match tokens[*cursor] {
-        Token::Op(c) => c,
-        Token::Num(n) => panic!("expected operator but found number {}", n)
-    };
-    *cursor += 1;
-    retval
-}
-
-fn next_operator(cursor: usize, tokens: &Vec<Token) -> char {
-    match tokens[*cursor] = {
-        Token::Op(c) => c,
-        Token::Num(n) => panic!("epxected operator but found a number {}", n),
+    let operator = match left {
+        Some(v) => token,
+        None => lexer.next_operator();
+    }
+    let mut right: ParseTree = ParseTree::Leaf(lexer.next_operand());
+    loop {
+        let next_operator = lexer.peek_next_operator();
+        if get_binding_power(operator).right >= get_binding_power(next_operator).left {
+            return ParseTree::Branch(operator, left: ParseTree::Leaf(left), right);
+        }
+        right = parse(Some(right), lexer);
     }
 }
 
