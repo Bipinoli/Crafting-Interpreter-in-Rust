@@ -42,6 +42,7 @@ fn main() {
     dbg!(&code);
     let mut scanner = Scanner::new(&code);
     let tokens = scanner.scan_tokens();
+    dbg!(&tokens);
     let bytecode = compile(&tokens);
     let mut vm = VM::new();
     vm.interpret(&bytecode);

@@ -43,6 +43,40 @@ impl ByteCode {
             line_info: Vec::new(),
         }
     }
+    pub fn merge_binary(left: &ByteCode, right: &ByteCode, operation: Opcode, line: u32) -> Self {
+        let mut code = ByteCode::new();
+        ByteCode::steal_data(&mut code, left);
+        ByteCode::steal_data(&mut code, right);
+        ByteCode::steal_code(&mut code, left, 0);
+        ByteCode::steal_code(&mut code, right, left.data.len() as u8);
+        code.write_code(operation as u8, line);
+        code.write_code(Opcode::Ret as u8, line);
+        code
+    }
+    fn steal_data(target: &mut ByteCode, source: &ByteCode) {
+        for d in &source.data {
+            target.write_data(d.clone());
+        }
+    }
+    fn steal_code(target: &mut ByteCode, source: &ByteCode, const_offset: u8) {
+        let mut cursor = 0;
+        loop {
+            let opcode = Opcode::try_from(source.code[cursor]).unwrap();
+            match opcode {
+                Opcode::Ret => return,
+                Opcode::Const => {
+                    target.write_code(Opcode::Const as u8, source.line_info[cursor]);
+                    cursor += 1;
+                    let addr = source.code[cursor];
+                    target.write_code(addr + const_offset, source.line_info[cursor]);
+                }
+                _ => {
+                    target.write_code(source.code[cursor], source.line_info[cursor]);
+                }
+            }
+            cursor += 1;
+        }
+    }
     pub fn write_code(&mut self, byte: u8, line: u32) {
         self.code.push(byte);
         self.line_info.push(line);
@@ -114,5 +148,58 @@ impl ByteCode {
         let value = self.data[data_offset];
         println!("{} {:#06x} '{}'", name, data_offset, value);
         offset + 2
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merge_works() {
+        // left = 2 + 3
+        // right = 6 / 2
+        // total = (2 + 3) - (6 / 2)
+        let mut left = ByteCode::new();
+        left.write_data(2.0);
+        left.write_data(3.0);
+        left.write_code(Opcode::Const as u8, 1);
+        left.write_code(0, 1);
+        left.write_code(Opcode::Const as u8, 1);
+        left.write_code(1, 1);
+        left.write_code(Opcode::Add as u8, 1);
+        left.write_code(Opcode::Ret as u8, 1);
+
+        let mut right = ByteCode::new();
+        right.write_data(6.0);
+        right.write_data(2.0);
+        right.write_code(Opcode::Const as u8, 2);
+        right.write_code(0, 2);
+        right.write_code(Opcode::Const as u8, 2);
+        right.write_code(1, 2);
+        right.write_code(Opcode::Div as u8, 2);
+        right.write_code(Opcode::Ret as u8, 2);
+
+        let merged = ByteCode::merge_binary(&left, &right, Opcode::Sub, 2);
+
+        let mut expected = ByteCode::new();
+        expected.write_data(2.0);
+        expected.write_data(3.0);
+        expected.write_code(Opcode::Const as u8, 1);
+        expected.write_code(0, 1);
+        expected.write_code(Opcode::Const as u8, 1);
+        expected.write_code(1, 1);
+        expected.write_code(Opcode::Add as u8, 1);
+        expected.write_data(6.0);
+        expected.write_data(2.0);
+        expected.write_code(Opcode::Const as u8, 2);
+        expected.write_code(2, 2);
+        expected.write_code(Opcode::Const as u8, 2);
+        expected.write_code(3, 2);
+        expected.write_code(Opcode::Div as u8, 2);
+        expected.write_code(Opcode::Sub as u8, 2);
+        expected.write_code(Opcode::Ret as u8, 2);
+
+        assert_eq!(merged.disasm(""), expected.disasm(""));
     }
 }
