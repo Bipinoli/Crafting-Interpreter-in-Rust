@@ -1,9 +1,13 @@
 #![allow(unused_imports, unused_variables)]
+use scanner::Scanner;
 use std::io::Write;
 use std::{env, fs, process};
 use vm::bytecode::{ByteCode, Opcode};
 use vm::vm::VM;
 
+use crate::compiler::compile;
+
+mod compiler;
 mod scanner;
 mod vm;
 //
@@ -34,16 +38,24 @@ mod vm;
 // }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() > 2 {
-        println!("Usage: lox [script]");
-        // exit code as per: https://man.freebsd.org/cgi/man.cgi?query=sysexits&apropos=0&sektion=0&manpath=FreeBSD+4.3-RELEASE&format=html
-        process::exit(64);
-    } else if args.len() == 2 {
-        run_file(&args[1]);
-    } else {
-        repl();
-    }
+    let code = "2 - 6 / 2 + 2 * 4".to_owned();
+    dbg!(&code);
+    let mut scanner = Scanner::new(&code);
+    let tokens = scanner.scan_tokens();
+    let bytecode = compile(&tokens);
+    let mut vm = VM::new();
+    vm.interpret(&bytecode);
+
+    // let args: Vec<String> = env::args().collect();
+    // if args.len() > 2 {
+    //     println!("Usage: lox [script]");
+    //     // exit code as per: https://man.freebsd.org/cgi/man.cgi?query=sysexits&apropos=0&sektion=0&manpath=FreeBSD+4.3-RELEASE&format=html
+    //     process::exit(64);
+    // } else if args.len() == 2 {
+    //     run_file(&args[1]);
+    // } else {
+    //     repl();
+    // }
 }
 
 fn run_file(file_path: &String) {

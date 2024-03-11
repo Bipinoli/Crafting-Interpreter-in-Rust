@@ -29,6 +29,7 @@ impl TryFrom<u8> for Opcode {
     }
 }
 
+#[derive(Debug)]
 pub struct ByteCode {
     code: Vec<u8>,
     data: Vec<f64>,
@@ -115,4 +116,3 @@ impl ByteCode {
         offset + 2
     }
 }
-
