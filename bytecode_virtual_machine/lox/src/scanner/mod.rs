@@ -46,18 +46,6 @@ impl Scanner {
     fn rewind(&mut self) {
         self.cursor -= 1;
     }
-    fn prev_non_whitespace(&self) -> Option<&char> {
-        let mut cursor = self.cursor;
-        loop {
-            if cursor == 0 {
-                return None;
-            }
-            cursor -= 1;
-            if !Self::is_whitespace(&self.source[cursor]) {
-                return Some(&self.source[cursor]);
-            }
-        }
-    }
     fn next_non_whitespace(&self) -> Option<&char> {
         let mut cursor = self.cursor;
         loop {
@@ -299,16 +287,15 @@ impl Scanner {
             self.next();
             return false;
         }
-        let retval = match self.prev_non_whitespace() {
-            None => true,
-            Some(c) => {
-                if *c == '-' || *c == '+' {
-                    true
-                } else {
-                    false
-                }
-            }
+        let prev_token = self.tokens.last();
+        let retval = match prev_token {
+            Some(token) => match token.token_type {
+                TokenType::Number => false,
+                _ => true,
+            },
+            _ => true,
         };
+
         self.next();
         retval
     }
@@ -370,16 +357,21 @@ mod tests {
 
     #[test]
     fn signed_number() {
-        let source = "4 - - 2.3 ".to_string();
+        let source = "4 - - 2.3 > - 2".to_string();
         let mut scanner = Scanner::new(&source);
         let tokens = scanner.scan_tokens();
-        assert_eq!(tokens.len(), 4);
+        dbg!(&tokens);
+        assert_eq!(tokens.len(), 6);
         assert_eq!(tokens[0].token_type, TokenType::Number);
         assert_eq!(tokens[0].lexeme, "4".to_string());
         assert_eq!(tokens[1].token_type, TokenType::Minus);
         assert_eq!(tokens[1].lexeme, "-".to_string());
         assert_eq!(tokens[2].token_type, TokenType::Number);
         assert_eq!(tokens[2].lexeme, "-2.3".to_string());
-        assert_eq!(tokens[3].token_type, TokenType::Eof);
+        assert_eq!(tokens[3].token_type, TokenType::Greater);
+        assert_eq!(tokens[3].lexeme, ">".to_string());
+        assert_eq!(tokens[4].token_type, TokenType::Number);
+        assert_eq!(tokens[4].lexeme, "-2".to_string());
+        assert_eq!(tokens[5].token_type, TokenType::Eof);
     }
 }
