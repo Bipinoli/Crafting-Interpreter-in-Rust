@@ -7,7 +7,7 @@ struct TokenStream<'a> {
     cursor: usize,
 }
 impl<'a> TokenStream<'a> {
-    fn new(tokens: &'a Vec<Token>) -> Self {
+    fn from(tokens: &'a Vec<Token>) -> Self {
         TokenStream { tokens, cursor: 0 }
     }
     fn peek(&self) -> &Token {
@@ -21,46 +21,131 @@ impl<'a> TokenStream<'a> {
 }
 
 pub fn compile(tokens: &Vec<Token>) -> ByteCode {
-    todo!()
+    let mut tokens = TokenStream::from(tokens);
+    if is_end(tokens.peek()) {
+        return emit_end(&tokens.next());
+    }
+    if is_number(tokens.peek()) {
+        return binary_parser(&mut tokens);
+    }
+    dbg!(&tokens.peek());
+    panic!("not implemented");
 }
 
-fn binary_parser() -> ByteCode {
-    todo!()
+fn binary_parser(tokens: &mut TokenStream) -> ByteCode {
+    let token = tokens.next();
+    let mut left = emit_number(&token);
+    loop {
+        left = pratt_parser(left, &token, tokens);
+        if is_end(tokens.peek()) {
+            return left;
+        }
+    }
 }
 
-// fn pratt_parser(left: ByteCode, tokens: &TokenStream) -> ByteCode {
-//     //TODO: currently only works with number
-//     //TODO: assumption that there is no syntax errors
-//     let token = tokens.peek();
-//     if let TokenType::Eof = token.token_type {
-//         return left;
-//     }
-//     if !is_binary_operator(&token) {
-//         eprintln!("Line {}: next token is not a binary operator", token.line);
-//         panic!("bad");
-//     }
-//     let operator = tokens.next();
-//     let right = tokens.next();
-//     if let TokenType::Eof = right.token_type {
-//         eprintln("Line {}: binary operator takes two operands", token.line);
-//         panic!("bad");
-//     }
-//     loop {
-//         let next_operator = tokens.peek();
-//         if let  TokenType::Eof = next_operator.token_type {
-//             return
-//         }
-//     }
-// }
+fn pratt_parser(left: ByteCode, left_token: &Token, tokens: &mut TokenStream) -> ByteCode {
+    let op = tokens.next();
+    if is_end(&op) || !is_binary_operator(&op) {
+        return left;
+    }
+    let right_token = tokens.next();
+    if is_end(&right_token) {
+        eprintln!(
+            "[{}] binary operator '{}' needs a valid right operand",
+            right_token.line, op.lexeme
+        );
+        panic!()
+    }
+    if left_token.token_type != right_token.token_type {
+        eprintln!(
+            "[{}] binary operator '{}' needs the left and right operand to be of same type",
+            right_token.line, op.lexeme
+        );
+        panic!()
+    }
+    let mut right = {
+        if is_number(left_token) {
+            emit_number(&right_token)
+        } else {
+            panic!("not implemented")
+        }
+    };
+    loop {
+        let next_op = tokens.peek();
+        if is_end(next_op) {
+            return ByteCode::merge_binary(&left, &right, opcode_from_op(&op), op.line as u32);
+        }
+        if get_binding_power(&(op.token_type)).right_operand
+            >= get_binding_power(&(next_op.token_type)).left_operand
+        {
+            return ByteCode::merge_binary(&left, &right, opcode_from_op(&op), op.line as u32);
+        }
+        right = pratt_parser(right, &right_token, tokens);
+    }
+}
 
-fn is_binary_operator(token: &Token) -> bool {
+struct BindingPower {
+    left_operand: f32,
+    right_operand: f32,
+}
+fn get_binding_power(operator: &TokenType) -> BindingPower {
+    match operator {
+        TokenType::Minus => BindingPower {
+            left_operand: 1.0,
+            right_operand: 1.1,
+        },
+        TokenType::Plus => BindingPower {
+            left_operand: 2.0,
+            right_operand: 2.1,
+        },
+        TokenType::Star => BindingPower {
+            left_operand: 3.0,
+            right_operand: 3.1,
+        },
+        TokenType::Slash => BindingPower {
+            left_operand: 4.0,
+            right_operand: 4.1,
+        },
+        _ => panic!("unknown binding power fro the operator: {}", operator),
+    }
+}
+
+fn is_end(token: &Token) -> bool {
     match token.token_type {
-        TokenType::Plus | TokenType::Minus | TokenType::Slash | TokenType::Star => true,
+        TokenType::Eof => true,
         _ => false,
     }
 }
 
-fn is_binary_operand(token: &Token) -> bool {
+fn is_binary_operator(token: &Token) -> bool {
+    match token.token_type {
+        TokenType::Plus
+        | TokenType::Minus
+        | TokenType::Star
+        | TokenType::Slash
+        | TokenType::EqualEqual
+        | TokenType::Less
+        | TokenType::LessEqual
+        | TokenType::Greater
+        | TokenType::GreaterEqual
+        | TokenType::BangEqual
+        | TokenType::Or
+        | TokenType::And => true,
+        _ => false,
+    }
+}
+
+fn opcode_from_op(token: &Token) -> Opcode {
+    match token.token_type {
+        TokenType::Plus => Opcode::Add,
+        TokenType::Minus => Opcode::Sub,
+        TokenType::Star => Opcode::Mul,
+        TokenType::Slash => Opcode::Div,
+        _ => panic!("can't conver the token: {} to opcode", token.lexeme),
+    }
+}
+
+fn is_number(token: &Token) -> bool {
     match token.token_type {
         TokenType::Number => true,
         _ => false,
@@ -73,39 +158,20 @@ fn emit_end(token: &Token) -> ByteCode {
     code
 }
 
-// fn parser(left: ByteCode, tokens: &TokenStream) -> ByteCode {
-//     if let Token::Eof = lexer.peek() {
-//         return match left {
-//             Some(v) => v,
-//             None => ParseTree::Leaf(Token::End),
-//         };
-//     }
-//     let left_operator = match left {
-//         Some(left) => (left, lexer.next()),
-//         None => (ParseTree::Leaf(lexer.next()), lexer.next()),
-//     };
-//     let left = left_operator.0;
-//     let operator = left_operator.1;
-//     let mut right: ParseTree = ParseTree::Leaf(lexer.next());
-//     loop {
-//         let next_operator = lexer.peek();
-//         if let Token::End = next_operator {
-//             return ParseTree::Branch {
-//                 operator: operator.clone(),
-//                 left: Box::new(left),
-//                 right: Box::new(right),
-//             };
-//         }
-//         if get_binding_power(&operator).right >= get_binding_power(next_operator).left {
-//             return ParseTree::Branch {
-//                 operator: operator.clone(),
-//                 left: Box::new(left),
-//                 right: Box::new(right),
-//             };
-//         }
-//         right = parse(Some(right), lexer);
-//     }
-// }
+fn emit_number(token: &Token) -> ByteCode {
+    match token.token_type {
+        TokenType::Number => {
+            let num = token.lexeme.parse::<f64>().unwrap();
+            let mut code = ByteCode::new();
+            code.write_data(num);
+            code.write_code(Opcode::Const as u8, token.line as u32);
+            code.write_code(0, token.line as u32);
+            code.write_code(Opcode::Ret as u8, token.line as u32);
+            code
+        }
+        _ => panic!("can't emit number from a NaN"),
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -116,6 +182,7 @@ mod tests {
 
     #[test]
     fn it_works() {
+        // 2 - 6 / 2 + 2 * 4
         let tokens = vec![
             Token {
                 token_type: TokenType::Number,
@@ -170,7 +237,6 @@ mod tests {
         ];
 
         let bytecode = compile(&tokens);
-
-        todo!();
+        bytecode.disasm("2 - 6 / 2 + 2 * 4");
     }
 }

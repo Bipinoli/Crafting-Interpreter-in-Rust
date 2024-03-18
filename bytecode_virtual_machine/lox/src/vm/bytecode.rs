@@ -43,6 +43,9 @@ impl ByteCode {
             line_info: Vec::new(),
         }
     }
+    pub fn is_nop(&self) -> bool {
+        self.code.len() == 0
+    }
     pub fn merge_binary(left: &ByteCode, right: &ByteCode, operation: Opcode, line: u32) -> Self {
         let mut code = ByteCode::new();
         ByteCode::steal_data(&mut code, left);
