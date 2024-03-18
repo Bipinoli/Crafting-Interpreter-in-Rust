@@ -90,6 +90,10 @@ struct BindingPower {
 }
 fn get_binding_power(operator: &TokenType) -> BindingPower {
     match operator {
+        TokenType::EqualEqual | TokenType::BangEqual => BindingPower {
+            left_operand: -1.1,
+            right_operand: -1.0,
+        },
         TokenType::Plus => BindingPower {
             left_operand: 1.0,
             right_operand: 1.1,

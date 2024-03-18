@@ -1,27 +1,85 @@
 #![allow(dead_code)]
 use crate::scanner::token::{Token, TokenType};
 use std::collections::HashMap;
-use std::iter::Peekable;
 use std::process;
-use std::str::Chars;
 
 pub mod token;
 
-pub struct Scanner<'a> {
-    pub source: Peekable<Chars<'a>>,
+pub struct Scanner {
+    pub source: Vec<char>,
     pub tokens: Vec<Token>,
     line: usize,
+    cursor: usize,
 }
-impl Scanner<'_> {
+impl Scanner {
     pub fn new(source: &String) -> Scanner {
         Scanner {
-            source: source.chars().peekable(),
+            source: source.chars().collect(),
             tokens: vec![],
             line: 1,
+            cursor: 0,
+        }
+    }
+    fn peek(&self) -> Option<&char> {
+        if self.cursor >= self.source.len() {
+            None
+        } else {
+            Some(&self.source[self.cursor])
+        }
+    }
+    fn peek_further(&self) -> Option<&char> {
+        if self.cursor + 1 >= self.source.len() {
+            None
+        } else {
+            Some(&self.source[self.cursor + 1])
+        }
+    }
+    fn next(&mut self) -> Option<char> {
+        if self.cursor >= self.source.len() {
+            None
+        } else {
+            let retval = self.source[self.cursor].clone();
+            self.cursor += 1;
+            Some(retval)
+        }
+    }
+    fn rewind(&mut self) {
+        self.cursor -= 1;
+    }
+    fn prev_non_whitespace(&self) -> Option<&char> {
+        let mut cursor = self.cursor;
+        loop {
+            if cursor == 0 {
+                return None;
+            }
+            cursor -= 1;
+            if !Self::is_whitespace(&self.source[cursor]) {
+                return Some(&self.source[cursor]);
+            }
+        }
+    }
+    fn next_non_whitespace(&self) -> Option<&char> {
+        let mut cursor = self.cursor;
+        loop {
+            if cursor >= self.source.len() {
+                return None;
+            }
+            cursor += 1;
+            if !Self::is_whitespace(&self.source[cursor]) {
+                return Some(&self.source[cursor]);
+            }
+        }
+    }
+    fn eat_whitespace(&mut self) {
+        while self.peek() != None {
+            if !Self::is_whitespace(self.peek().unwrap()) {
+                break;
+            }
+            self.next();
         }
     }
     pub fn scan_tokens(&mut self) -> &Vec<Token> {
-        while self.source.peek() != None {
+        while self.peek() != None {
             self.scan_token();
         }
         self.add_token(TokenType::Eof, String::new());
@@ -29,7 +87,7 @@ impl Scanner<'_> {
     }
 
     fn scan_token(&mut self) {
-        match self.source.next() {
+        match self.next() {
             None => {}
             Some(c) => match c {
                 ' ' | '\r' | '\t' => {}
@@ -41,11 +99,19 @@ impl Scanner<'_> {
                 '}' => self.add_token(TokenType::RightBrace, String::from("}")),
                 ',' => self.add_token(TokenType::Comma, String::from(",")),
                 '.' => self.add_token(TokenType::Dot, String::from(".")),
-                '-' => self.add_token(TokenType::Minus, String::from("-")),
-                '+' => self.add_token(TokenType::Plus, String::from("+")),
-                '*' => self.add_token(TokenType::Star, String::from("*")),
                 ';' => self.add_token(TokenType::Semicolon, String::from(";")),
 
+                '+' => self.add_token(TokenType::Plus, String::from("+")),
+                '-' => {
+                    if self.is_signed_number() {
+                        self.eat_whitespace();
+                        self.match_number('-');
+                    } else {
+                        self.add_token(TokenType::Minus, String::from("-"));
+                    }
+                }
+
+                '*' => self.add_token(TokenType::Star, String::from("*")),
                 '!' => {
                     self.match_next_char(
                         '=',
@@ -84,10 +150,10 @@ impl Scanner<'_> {
                 }
 
                 '/' => {
-                    match self.source.peek() {
+                    match self.peek() {
                         Some('/') => {
                             // matched a comment line
-                            while self.source.next() != Some('\n') {}
+                            while self.next() != Some('\n') {}
                         }
                         _ => self.add_token(TokenType::Slash, String::from("/")),
                     }
@@ -112,7 +178,7 @@ impl Scanner<'_> {
     fn match_string(&mut self) {
         let mut lexeme = String::new();
         loop {
-            match self.source.next() {
+            match self.next() {
                 Some('"') => {
                     self.add_token(TokenType::String, lexeme.clone());
                     break;
@@ -136,16 +202,16 @@ impl Scanner<'_> {
         let mut lexeme = String::from(starting_char);
         let mut decimal_read = false;
         loop {
-            match self.source.peek() {
+            match self.peek() {
                 Some(c) if Self::is_digit(c.clone()) => {
                     lexeme.push(c.clone());
-                    self.source.next();
+                    self.next();
                 }
-                Some('.') if !decimal_read => match self.peek_skip_ahead() {
+                Some('.') if !decimal_read => match self.peek_further() {
                     Some(c) if Self::is_digit(c.clone()) => {
                         lexeme.push('.');
                         decimal_read = true;
-                        self.source.next();
+                        self.next();
                     }
                     _ => {}
                 },
@@ -160,10 +226,10 @@ impl Scanner<'_> {
     fn match_keyword_or_identifier(&mut self, starting_char: char) {
         let mut lexeme = String::from(starting_char);
         loop {
-            match self.source.peek() {
+            match self.peek() {
                 Some(c) if Self::is_alphabetic(c.clone()) || Self::is_digit(c.clone()) => {
                     lexeme.push(c.clone());
-                    self.source.next();
+                    self.next();
                 }
                 _ => {
                     break;
@@ -206,9 +272,9 @@ impl Scanner<'_> {
         unmatch_token: TokenType,
         unmatch_lexeme: String,
     ) {
-        match self.source.peek() {
+        match self.peek() {
             Some(c) if c.clone() == to_match => {
-                self.source.next();
+                self.next();
                 self.add_token(match_token, match_lexeme);
             }
             _ => {
@@ -221,10 +287,30 @@ impl Scanner<'_> {
         self.tokens.push(Token::new(token_type, lexeme, self.line));
     }
 
-    fn peek_skip_ahead(&self) -> Option<char> {
-        let mut iter = self.source.clone();
-        iter.next();
-        iter.next()
+    fn is_signed_number(&mut self) -> bool {
+        self.rewind();
+        let next = self.next_non_whitespace();
+        if next == None {
+            self.next();
+            return false;
+        }
+        let next_is_digit = Self::is_digit(next.unwrap().clone());
+        if !next_is_digit {
+            self.next();
+            return false;
+        }
+        let retval = match self.prev_non_whitespace() {
+            None => true,
+            Some(c) => {
+                if *c == '-' || *c == '+' {
+                    true
+                } else {
+                    false
+                }
+            }
+        };
+        self.next();
+        retval
     }
 
     fn is_digit(ch: char) -> bool {
@@ -239,6 +325,10 @@ impl Scanner<'_> {
             'a'..='z' | 'A'..='Z' => true,
             _ => false,
         }
+    }
+
+    fn is_whitespace(ch: &char) -> bool {
+        *ch == ' ' || *ch == '\r' || *ch == '\n'
     }
 }
 
@@ -276,5 +366,20 @@ mod tests {
         assert_eq!(tokens[5].lexeme, "==".to_string());
         assert_eq!(tokens[6].token_type, TokenType::Number);
         assert_eq!(tokens[6].lexeme, "2".to_string());
+    }
+
+    #[test]
+    fn signed_number() {
+        let source = "4 - - 2.3 ".to_string();
+        let mut scanner = Scanner::new(&source);
+        let tokens = scanner.scan_tokens();
+        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens[0].token_type, TokenType::Number);
+        assert_eq!(tokens[0].lexeme, "4".to_string());
+        assert_eq!(tokens[1].token_type, TokenType::Minus);
+        assert_eq!(tokens[1].lexeme, "-".to_string());
+        assert_eq!(tokens[2].token_type, TokenType::Number);
+        assert_eq!(tokens[2].lexeme, "-2.3".to_string());
+        assert_eq!(tokens[3].token_type, TokenType::Eof);
     }
 }
