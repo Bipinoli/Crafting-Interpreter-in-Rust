@@ -38,7 +38,7 @@ mod vm;
 // }
 
 fn main() {
-    let code = "2 - 6 / 2 + 2 * 4".to_owned();
+    let code = "2 - 6 / 2 + 2 * 4 == -7".to_owned();
     dbg!(&code);
     let mut scanner = Scanner::new(&code);
     let tokens = scanner.scan_tokens();

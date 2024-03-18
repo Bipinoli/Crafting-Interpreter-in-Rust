@@ -90,11 +90,11 @@ struct BindingPower {
 }
 fn get_binding_power(operator: &TokenType) -> BindingPower {
     match operator {
-        TokenType::Minus => BindingPower {
+        TokenType::Plus => BindingPower {
             left_operand: 1.0,
             right_operand: 1.1,
         },
-        TokenType::Plus => BindingPower {
+        TokenType::Minus => BindingPower {
             left_operand: 2.0,
             right_operand: 2.1,
         },
@@ -106,7 +106,7 @@ fn get_binding_power(operator: &TokenType) -> BindingPower {
             left_operand: 4.0,
             right_operand: 4.1,
         },
-        _ => panic!("unknown binding power fro the operator: {}", operator),
+        _ => panic!("unknown binding power for the operator: {}", operator),
     }
 }
 
