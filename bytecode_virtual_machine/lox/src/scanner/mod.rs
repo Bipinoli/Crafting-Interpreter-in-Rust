@@ -360,7 +360,6 @@ mod tests {
         let source = "4 - - 2.3 > - 2".to_string();
         let mut scanner = Scanner::new(&source);
         let tokens = scanner.scan_tokens();
-        dbg!(&tokens);
         assert_eq!(tokens.len(), 6);
         assert_eq!(tokens[0].token_type, TokenType::Number);
         assert_eq!(tokens[0].lexeme, "4".to_string());

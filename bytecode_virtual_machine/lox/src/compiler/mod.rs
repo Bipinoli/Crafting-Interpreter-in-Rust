@@ -90,7 +90,12 @@ struct BindingPower {
 }
 fn get_binding_power(operator: &TokenType) -> BindingPower {
     match operator {
-        TokenType::EqualEqual | TokenType::BangEqual => BindingPower {
+        TokenType::EqualEqual
+        | TokenType::BangEqual
+        | TokenType::Greater
+        | TokenType::GreaterEqual
+        | TokenType::Less
+        | TokenType::LessEqual => BindingPower {
             left_operand: -1.1,
             right_operand: -1.0,
         },
@@ -109,6 +114,10 @@ fn get_binding_power(operator: &TokenType) -> BindingPower {
         TokenType::Slash => BindingPower {
             left_operand: 4.0,
             right_operand: 4.1,
+        },
+        TokenType::Bang => BindingPower {
+            left_operand: 5.0,
+            right_operand: 5.1,
         },
         _ => panic!("unknown binding power for the operator: {}", operator),
     }
@@ -145,7 +154,14 @@ fn opcode_from_op(token: &Token) -> Opcode {
         TokenType::Minus => Opcode::Sub,
         TokenType::Star => Opcode::Mul,
         TokenType::Slash => Opcode::Div,
-        _ => panic!("can't conver the token: {} to opcode", token.lexeme),
+        TokenType::EqualEqual => Opcode::Equal,
+        TokenType::BangEqual => Opcode::NotEqual,
+        TokenType::Greater => Opcode::Greater,
+        TokenType::GreaterEqual => Opcode::GreaterEqual,
+        TokenType::Less => Opcode::Less,
+        TokenType::LessEqual => Opcode::LessEqual,
+        TokenType::Bang => Opcode::Not,
+        _ => panic!("can't convert the token: {} to opcode", token.lexeme),
     }
 }
 

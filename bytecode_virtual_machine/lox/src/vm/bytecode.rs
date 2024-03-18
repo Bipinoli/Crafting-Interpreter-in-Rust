@@ -18,6 +18,9 @@ pub enum Opcode {
     Equal = 10,
     Greater = 11,
     Less = 12,
+    GreaterEqual = 13,
+    LessEqual = 14,
+    NotEqual = 15,
 }
 impl TryFrom<u8> for Opcode {
     type Error = ();
@@ -36,6 +39,9 @@ impl TryFrom<u8> for Opcode {
             10 => Ok(Opcode::Equal),
             11 => Ok(Opcode::Greater),
             12 => Ok(Opcode::Less),
+            13 => Ok(Opcode::GreaterEqual),
+            14 => Ok(Opcode::LessEqual),
+            15 => Ok(Opcode::NotEqual),
             _ => Err(()),
         }
     }
@@ -152,9 +158,12 @@ impl ByteCode {
             Opcode::True => self.simple_instruction("True", offset),
             Opcode::False => self.simple_instruction("False", offset),
             Opcode::Not => self.simple_instruction("Not", offset),
-            Opcode::Equal => self.simple_instruction("Equal", offset),
-            Opcode::Greater => self.simple_instruction("Greater", offset),
-            Opcode::Less => self.simple_instruction("Less", offset),
+            Opcode::Equal => self.simple_instruction("==", offset),
+            Opcode::NotEqual => self.simple_instruction("!=", offset),
+            Opcode::Greater => self.simple_instruction(">", offset),
+            Opcode::GreaterEqual => self.simple_instruction(">=", offset),
+            Opcode::Less => self.simple_instruction("<", offset),
+            Opcode::LessEqual => self.simple_instruction("<=", offset),
         }
     }
     fn simple_instruction(&self, name: &str, offset: usize) -> usize {

@@ -164,7 +164,18 @@ impl VM {
                         let b = b.get_num();
                         self.push(Value::Bool(a < b));
                     } else {
-                        panic!("only numnbers can be compared with <, >, <=, >=")
+                        panic!("only numnbers can be compared with <")
+                    }
+                }
+                Opcode::LessEqual => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    if a.is_num() && b.is_num() {
+                        let a = a.get_num();
+                        let b = b.get_num();
+                        self.push(Value::Bool(a <= b));
+                    } else {
+                        panic!("only numnbers can be compared with <=")
                     }
                 }
                 Opcode::Greater => {
@@ -175,7 +186,18 @@ impl VM {
                         let b = b.get_num();
                         self.push(Value::Bool(a > b));
                     } else {
-                        panic!("only numnbers can be compared with <, >, <=, >=")
+                        panic!("only numnbers can be compared with >")
+                    }
+                }
+                Opcode::GreaterEqual => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    if a.is_num() && b.is_num() {
+                        let a = a.get_num();
+                        let b = b.get_num();
+                        self.push(Value::Bool(a >= b));
+                    } else {
+                        panic!("only numnbers can be compared with >=")
                     }
                 }
                 Opcode::Equal => {
@@ -190,7 +212,22 @@ impl VM {
                         let b = b.get_num();
                         self.push(Value::Bool(a == b));
                     } else {
-                        panic!("only booleans and numbers can be compared with ==/!= and left and right side must have the same type")
+                        panic!("only booleans and numbers can be compared with ==")
+                    }
+                }
+                Opcode::NotEqual => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    if a.is_bool() && b.is_bool() {
+                        let a = a.get_bool();
+                        let b = b.get_bool();
+                        self.push(Value::Bool(a != b));
+                    } else if a.is_num() && b.is_num() {
+                        let a = a.get_num();
+                        let b = b.get_num();
+                        self.push(Value::Bool(a != b));
+                    } else {
+                        panic!("only booleans and numbers can be compared with !=")
                     }
                 }
             }
