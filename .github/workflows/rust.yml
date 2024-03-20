@@ -24,7 +24,7 @@ jobs:
         cargo build --verbose
     - name: Run tests
       run: |
-        cd ../../tree_walk_interpreter
+        cd tree_walk_interpreter
         cargo test --workspace --verbose
         cd ../bytecode_virtual_machine/lox
         cargo test --verbose
