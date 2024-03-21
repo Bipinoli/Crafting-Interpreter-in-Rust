@@ -51,19 +51,16 @@ pub fn compile(tokens: &Vec<Token>) -> ByteCode {
 fn string_parser(tokens: &mut TokenStream) -> ByteCode {
     let mut code = ByteCode::new();
     emit_string(&mut code, &tokens.next());
-    let mut plus_found = false;
-    let mut plus_line: u32 = 0;
     loop {
         let next = tokens.peek();
         match next.token_type {
             TokenType::Plus => {
-                plus_found = true;
-                plus_line = next.line as u32;
                 tokens.next();
                 let tok = tokens.next();
                 match tok.token_type {
                     TokenType::String => {
                         emit_string(&mut code, &tok);
+                        code.write_code(Opcode::Add as u8, tok.line as u32);
                     }
                     _ => {
                         panic!("expected a string after a +")
@@ -73,10 +70,7 @@ fn string_parser(tokens: &mut TokenStream) -> ByteCode {
             _ => break,
         }
     }
-    if plus_found {
-        code.write_code(Opcode::Add as u8, plus_line);
-    }
-    code.write_code(Opcode::Ret as u8, plus_line);
+    code.write_code(Opcode::Ret as u8, 0);
     code
 }
 
