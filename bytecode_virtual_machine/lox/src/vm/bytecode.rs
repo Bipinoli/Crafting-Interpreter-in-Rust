@@ -6,7 +6,7 @@ use std::usize;
 #[derive(Debug)]
 pub enum Opcode {
     Ret = 0,
-    Const = 1,
+    Num = 1,
     Neg = 2,
     Add = 3,
     Sub = 4,
@@ -27,7 +27,7 @@ impl TryFrom<u8> for Opcode {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Opcode::Ret),
-            1 => Ok(Opcode::Const),
+            1 => Ok(Opcode::Num),
             2 => Ok(Opcode::Neg),
             3 => Ok(Opcode::Add),
             4 => Ok(Opcode::Sub),
@@ -50,14 +50,16 @@ impl TryFrom<u8> for Opcode {
 #[derive(Debug)]
 pub struct ByteCode {
     code: Vec<u8>,
-    data: Vec<f64>,
+    numbers: Vec<f64>,
+    strings: Vec<String>,
     line_info: Vec<u32>,
 }
 impl ByteCode {
     pub fn new() -> Self {
         ByteCode {
             code: Vec::new(),
-            data: Vec::new(),
+            numbers: Vec::new(),
+            strings: Vec::new(),
             line_info: Vec::new(),
         }
     }
@@ -66,30 +68,35 @@ impl ByteCode {
     }
     pub fn merge_binary(left: &ByteCode, right: &ByteCode, operation: Opcode, line: u32) -> Self {
         let mut code = ByteCode::new();
+        let num_offset = left.numbers.len();
+        let str_offset = left.strings.len();
         ByteCode::steal_data(&mut code, left);
         ByteCode::steal_data(&mut code, right);
-        ByteCode::steal_code(&mut code, left, 0);
-        ByteCode::steal_code(&mut code, right, left.data.len() as u8);
+        ByteCode::steal_code(&mut code, left, 0, 0);
+        ByteCode::steal_code(&mut code, right, num_offset as u8, str_offset as u8);
         code.write_code(operation as u8, line);
         code.write_code(Opcode::Ret as u8, line);
         code
     }
     fn steal_data(target: &mut ByteCode, source: &ByteCode) {
-        for d in &source.data {
-            target.write_data(d.clone());
+        for n in &source.numbers {
+            target.write_number(n.clone());
+        }
+        for s in &source.strings {
+            target.write_string(s.clone());
         }
     }
-    fn steal_code(target: &mut ByteCode, source: &ByteCode, const_offset: u8) {
+    fn steal_code(target: &mut ByteCode, source: &ByteCode, num_offset: u8, str_offset: u8) {
         let mut cursor = 0;
         loop {
             let opcode = Opcode::try_from(source.code[cursor]).unwrap();
             match opcode {
                 Opcode::Ret => return,
-                Opcode::Const => {
-                    target.write_code(Opcode::Const as u8, source.line_info[cursor]);
+                Opcode::Num => {
+                    target.write_code(Opcode::Num as u8, source.line_info[cursor]);
                     cursor += 1;
                     let addr = source.code[cursor];
-                    target.write_code(addr + const_offset, source.line_info[cursor]);
+                    target.write_code(addr + num_offset, source.line_info[cursor]);
                 }
                 _ => {
                     target.write_code(source.code[cursor], source.line_info[cursor]);
@@ -102,8 +109,11 @@ impl ByteCode {
         self.code.push(byte);
         self.line_info.push(line);
     }
-    pub fn write_data(&mut self, byte: f64) {
-        self.data.push(byte);
+    pub fn write_number(&mut self, byte: f64) {
+        self.numbers.push(byte);
+    }
+    pub fn write_string(&mut self, str: String) {
+        self.strings.push(str);
     }
     pub fn fetch_instruction(&self, ip: &mut usize) -> Opcode {
         if *ip >= self.code.len() {
@@ -121,11 +131,11 @@ impl ByteCode {
         *ip += 1;
         retval
     }
-    pub fn fetch_data(&self, addr: usize) -> f64 {
-        if addr >= self.data.len() {
+    pub fn fetch_number(&self, addr: usize) -> f64 {
+        if addr >= self.numbers.len() {
             panic!("attempted to fetch data outside the data section boundary");
         }
-        self.data[addr]
+        self.numbers[addr]
     }
     pub fn disasm(&self, name: &str) {
         println!("====== Code section ({name}) ======");
@@ -137,9 +147,13 @@ impl ByteCode {
     }
     fn disasm_data(&self, name: &str) {
         println!("====== data section ({name}) ======");
-        for (i, item) in self.data.iter().enumerate() {
-            println!("{:#06x} {}", i, item);
-        }
+        println!("Numbers: [{}]", {
+            let mut ret = String::new();
+            for num in &self.numbers {
+                ret = format!("{ret}, {}", num);
+            }
+            ret
+        });
     }
     pub fn disasm_instruction(&self, offset: usize) -> usize {
         print!("{:#06x} ", offset);
@@ -149,7 +163,7 @@ impl ByteCode {
         };
         match opcode.unwrap() {
             Opcode::Ret => self.simple_instruction("Ret", offset),
-            Opcode::Const => self.const_instruction("Const", offset),
+            Opcode::Num => self.num_instruction("Num", offset),
             Opcode::Neg => self.simple_instruction("Neg", offset),
             Opcode::Add => self.simple_instruction("Add", offset),
             Opcode::Sub => self.simple_instruction("Sub", offset),
@@ -170,12 +184,12 @@ impl ByteCode {
         println!("{name}");
         offset + 1
     }
-    fn const_instruction(&self, name: &str, offset: usize) -> usize {
+    fn num_instruction(&self, name: &str, offset: usize) -> usize {
         let data_offset = self.code[offset + 1] as usize;
-        if data_offset >= self.data.len() {
+        if data_offset >= self.numbers.len() {
             panic!("attemptinng to read outside of data section");
         }
-        let value = self.data[data_offset];
+        let value = self.numbers[data_offset];
         println!("{} {:#06x} '{}'", name, data_offset, value);
         offset + 2
     }
@@ -191,21 +205,21 @@ mod tests {
         // right = 6 / 2
         // total = (2 + 3) - (6 / 2)
         let mut left = ByteCode::new();
-        left.write_data(2.0);
-        left.write_data(3.0);
-        left.write_code(Opcode::Const as u8, 1);
+        left.write_number(2.0);
+        left.write_number(3.0);
+        left.write_code(Opcode::Num as u8, 1);
         left.write_code(0, 1);
-        left.write_code(Opcode::Const as u8, 1);
+        left.write_code(Opcode::Num as u8, 1);
         left.write_code(1, 1);
         left.write_code(Opcode::Add as u8, 1);
         left.write_code(Opcode::Ret as u8, 1);
 
         let mut right = ByteCode::new();
-        right.write_data(6.0);
-        right.write_data(2.0);
-        right.write_code(Opcode::Const as u8, 2);
+        right.write_number(6.0);
+        right.write_number(2.0);
+        right.write_code(Opcode::Num as u8, 2);
         right.write_code(0, 2);
-        right.write_code(Opcode::Const as u8, 2);
+        right.write_code(Opcode::Num as u8, 2);
         right.write_code(1, 2);
         right.write_code(Opcode::Div as u8, 2);
         right.write_code(Opcode::Ret as u8, 2);
@@ -213,18 +227,18 @@ mod tests {
         let merged = ByteCode::merge_binary(&left, &right, Opcode::Sub, 2);
 
         let mut expected = ByteCode::new();
-        expected.write_data(2.0);
-        expected.write_data(3.0);
-        expected.write_code(Opcode::Const as u8, 1);
+        expected.write_number(2.0);
+        expected.write_number(3.0);
+        expected.write_code(Opcode::Num as u8, 1);
         expected.write_code(0, 1);
-        expected.write_code(Opcode::Const as u8, 1);
+        expected.write_code(Opcode::Num as u8, 1);
         expected.write_code(1, 1);
         expected.write_code(Opcode::Add as u8, 1);
-        expected.write_data(6.0);
-        expected.write_data(2.0);
-        expected.write_code(Opcode::Const as u8, 2);
+        expected.write_number(6.0);
+        expected.write_number(2.0);
+        expected.write_code(Opcode::Num as u8, 2);
         expected.write_code(2, 2);
-        expected.write_code(Opcode::Const as u8, 2);
+        expected.write_code(Opcode::Num as u8, 2);
         expected.write_code(3, 2);
         expected.write_code(Opcode::Div as u8, 2);
         expected.write_code(Opcode::Sub as u8, 2);

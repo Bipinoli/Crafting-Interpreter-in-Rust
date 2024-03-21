@@ -183,8 +183,8 @@ fn emit_number(token: &Token) -> ByteCode {
         TokenType::Number => {
             let num = token.lexeme.parse::<f64>().unwrap();
             let mut code = ByteCode::new();
-            code.write_data(num);
-            code.write_code(Opcode::Const as u8, token.line as u32);
+            code.write_number(num);
+            code.write_code(Opcode::Num as u8, token.line as u32);
             code.write_code(0, token.line as u32);
             code.write_code(Opcode::Ret as u8, token.line as u32);
             code

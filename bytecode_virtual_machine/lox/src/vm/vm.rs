@@ -1,54 +1,12 @@
 #![allow(dead_code)]
 use super::bytecode::ByteCode;
 use super::bytecode::Opcode;
-use std::fmt;
+use super::value::Value;
 
 pub enum InterpretResult {
     Ok,
     CompileErr,
     RuntimeErr,
-}
-
-#[derive(Clone, Copy)]
-enum Value {
-    Num(f64),
-    Bool(bool),
-    Nil,
-}
-impl Value {
-    fn is_num(&self) -> bool {
-        match self {
-            Value::Num(_) => true,
-            _ => false,
-        }
-    }
-    fn is_bool(&self) -> bool {
-        match self {
-            Value::Bool(_) => true,
-            _ => false,
-        }
-    }
-    fn get_num(&self) -> f64 {
-        match self {
-            Value::Num(v) => v.clone(),
-            _ => panic!("can't extract number from non number Value"),
-        }
-    }
-    fn get_bool(&self) -> bool {
-        match self {
-            Value::Bool(b) => b.clone(),
-            _ => panic!("can't extract boolean from non boolean Value)"),
-        }
-    }
-}
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Value::Nil => write!(f, "Nil"),
-            Value::Bool(v) => write!(f, "{v}"),
-            Value::Num(n) => write!(f, "{n}"),
-        }
-    }
 }
 
 const STACK_LIMIT: usize = 256;
@@ -86,9 +44,9 @@ impl VM {
 
             match instruction {
                 Opcode::Ret => return InterpretResult::Ok,
-                Opcode::Const => {
+                Opcode::Num => {
                     let addr = byte_code.fetch_operand(&mut self.ip);
-                    let constant = byte_code.fetch_data(addr as usize);
+                    let constant = byte_code.fetch_number(addr as usize);
                     self.push(Value::Num(constant));
                 }
                 Opcode::Neg => match self.pop() {
