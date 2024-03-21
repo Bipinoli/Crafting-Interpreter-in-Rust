@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::scanner::token::{self, Token, TokenType};
-use crate::vm::bytecode::{ByteCode, Opcode};
+use crate::vm::bytecode::{self, ByteCode, Opcode};
 
 struct TokenStream<'a> {
     tokens: &'a Vec<Token>,
@@ -26,7 +26,7 @@ pub fn compile(tokens: &Vec<Token>) -> ByteCode {
         return emit_end(&tokens.next());
     }
     if is_number(tokens.peek()) {
-        return binary_parser(&mut tokens);
+        return binary_parser(&mut tokens, TokenType::Eof);
     }
     if is_string(tokens.peek()) {
         return string_parser(&mut tokens);
@@ -88,12 +88,30 @@ fn string_parser(tokens: &mut TokenStream) -> ByteCode {
     code
 }
 
-fn binary_parser(tokens: &mut TokenStream) -> ByteCode {
+fn paren_parser(tokens: &mut TokenStream) -> ByteCode {
+    if tokens.peek().token_type == TokenType::LeftParen {
+        tokens.next();
+        let code = paren_parser(tokens);
+        tokens.next();
+        return code;
+    }
+    let code = binary_parser(tokens, TokenType::RightParen);
+    tokens.next();
+    code
+}
+
+fn binary_parser(tokens: &mut TokenStream, end_token: TokenType) -> ByteCode {
     let token = tokens.next();
     let mut left = emit_number(&token);
     loop {
         left = pratt_parser(left, &token, tokens);
+        if tokens.peek().token_type == end_token {
+            return left;
+        }
         if is_end(tokens.peek()) {
+            if end_token != TokenType::Eof {
+                panic!("missing {}", end_token);
+            }
             return left;
         }
     }
@@ -112,7 +130,9 @@ fn pratt_parser(left: ByteCode, left_token: &Token, tokens: &mut TokenStream) ->
         );
         panic!()
     }
-    if left_token.token_type != right_token.token_type {
+    if right_token.token_type != TokenType::LeftParen
+        && left_token.token_type != right_token.token_type
+    {
         eprintln!(
             "[{}] binary operator '{}' needs the left and right operand to be of same type",
             right_token.line, op.lexeme
@@ -120,7 +140,9 @@ fn pratt_parser(left: ByteCode, left_token: &Token, tokens: &mut TokenStream) ->
         panic!()
     }
     let mut right = {
-        if is_number(left_token) {
+        if right_token.token_type == TokenType::LeftParen {
+            paren_parser(tokens)
+        } else if is_number(left_token) {
             emit_number(&right_token)
         } else {
             panic!("not implemented")
@@ -128,7 +150,7 @@ fn pratt_parser(left: ByteCode, left_token: &Token, tokens: &mut TokenStream) ->
     };
     loop {
         let next_op = tokens.peek();
-        if is_end(next_op) {
+        if is_end(next_op) || next_op.token_type == TokenType::RightParen {
             return ByteCode::merge_binary(&left, &right, opcode_from_op(&op), op.line as u32);
         }
         if get_binding_power(&(op.token_type)).right_operand
