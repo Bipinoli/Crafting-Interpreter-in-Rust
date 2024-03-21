@@ -67,6 +67,20 @@ fn string_parser(tokens: &mut TokenStream) -> ByteCode {
                     }
                 }
             }
+            TokenType::EqualEqual => {
+                tokens.next();
+                let tok = tokens.next();
+                match tok.token_type {
+                    TokenType::String => {
+                        emit_string(&mut code, &tok);
+                        code.write_code(Opcode::Equal as u8, tok.line as u32);
+                    }
+                    _ => {
+                        panic!("expected a string after a +")
+                    }
+                }
+                break;
+            }
             _ => break,
         }
     }

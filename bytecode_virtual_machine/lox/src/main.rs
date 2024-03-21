@@ -38,7 +38,7 @@ mod vm;
 // }
 
 fn main() {
-    let code = "\"bipin\" + \" oli\" + \"is my name\"".to_owned();
+    let code = "\"bxpin\" == \"bipin\"".to_string();
     dbg!(&code);
     let mut scanner = Scanner::new(&code);
     let tokens = scanner.scan_tokens();

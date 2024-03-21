@@ -179,6 +179,10 @@ impl VM {
                         let a = a.get_num();
                         let b = b.get_num();
                         self.push(Value::Bool(a == b));
+                    } else if a.is_string() && b.is_string() {
+                        let a = a.get_string();
+                        let b = b.get_string();
+                        self.push(Value::Bool(a == b));
                     } else {
                         panic!("only booleans and numbers can be compared with ==")
                     }
