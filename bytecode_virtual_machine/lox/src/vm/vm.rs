@@ -11,7 +11,7 @@ pub enum InterpretResult {
 
 const STACK_LIMIT: usize = 256;
 pub struct VM {
-    stack: [Value; 256],
+    stack: Vec<Value>,
     ip: usize,
     sp: usize,
 }
@@ -19,7 +19,7 @@ pub struct VM {
 impl VM {
     pub fn new() -> Self {
         VM {
-            stack: [Value::Nil; 256],
+            stack: Vec::new(),
             ip: 0,
             sp: 0,
         }
@@ -49,6 +49,11 @@ impl VM {
                     let constant = byte_code.fetch_number(addr as usize);
                     self.push(Value::Num(constant));
                 }
+                Opcode::Str => {
+                    let addr = byte_code.fetch_operand(&mut self.ip);
+                    let constant = byte_code.fetch_string(addr as usize);
+                    self.push(Value::Str(constant.clone()));
+                }
                 Opcode::Neg => match self.pop() {
                     Value::Num(v) => self.push(Value::Num(-v)),
                     _ => panic!("Negate only works on number"),
@@ -60,6 +65,11 @@ impl VM {
                         let a = a.get_num();
                         let b = b.get_num();
                         self.push(Value::Num(a + b));
+                    } else if a.is_string() && b.is_string() {
+                        let a = a.get_string();
+                        let b = b.get_string();
+                        let result = format!("{}{}", a, b);
+                        self.push(Value::Str(result));
                     } else {
                         panic!("only numnbers can be added")
                     }
@@ -195,16 +205,15 @@ impl VM {
         if self.sp >= STACK_LIMIT {
             panic!("stackoverflow");
         }
-        self.stack[self.sp] = v;
+        self.stack.push(v);
         self.sp += 1;
     }
     fn pop(&mut self) -> Value {
         if self.sp == 0 {
             panic!("stack underflow");
         }
-        let retval = self.stack[self.sp - 1];
         self.sp -= 1;
-        retval
+        self.stack.pop().unwrap()
     }
 
     fn reset(&mut self) {

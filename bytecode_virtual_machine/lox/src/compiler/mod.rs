@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::scanner::token::{Token, TokenType};
+use crate::scanner::token::{self, Token, TokenType};
 use crate::vm::bytecode::{ByteCode, Opcode};
 
 struct TokenStream<'a> {
@@ -28,8 +28,56 @@ pub fn compile(tokens: &Vec<Token>) -> ByteCode {
     if is_number(tokens.peek()) {
         return binary_parser(&mut tokens);
     }
-    dbg!(&tokens.peek());
-    panic!("not implemented");
+    if is_string(tokens.peek()) {
+        return string_parser(&mut tokens);
+    }
+    let mut code = ByteCode::new();
+    loop {
+        if is_end(tokens.peek()) {
+            let token = tokens.next();
+            code.write_code(Opcode::Ret as u8, token.line as u32);
+            return code;
+        } else if is_string(tokens.peek()) {
+            emit_string(&mut code, &tokens.next());
+        } else if is_op(tokens.peek()) {
+            emit_op(&mut code, &tokens.next());
+        } else {
+            dbg!(&tokens.peek());
+            panic!("not implemented");
+        }
+    }
+}
+
+fn string_parser(tokens: &mut TokenStream) -> ByteCode {
+    let mut code = ByteCode::new();
+    emit_string(&mut code, &tokens.next());
+    let mut plus_found = false;
+    let mut plus_line: u32 = 0;
+    loop {
+        let next = tokens.peek();
+        match next.token_type {
+            TokenType::Plus => {
+                plus_found = true;
+                plus_line = next.line as u32;
+                tokens.next();
+                let tok = tokens.next();
+                match tok.token_type {
+                    TokenType::String => {
+                        emit_string(&mut code, &tok);
+                    }
+                    _ => {
+                        panic!("expected a string after a +")
+                    }
+                }
+            }
+            _ => break,
+        }
+    }
+    if plus_found {
+        code.write_code(Opcode::Add as u8, plus_line);
+    }
+    code.write_code(Opcode::Ret as u8, plus_line);
+    code
 }
 
 fn binary_parser(tokens: &mut TokenStream) -> ByteCode {
@@ -172,6 +220,20 @@ fn is_number(token: &Token) -> bool {
     }
 }
 
+fn is_string(token: &Token) -> bool {
+    match token.token_type {
+        TokenType::String => true,
+        _ => false,
+    }
+}
+
+fn is_op(token: &Token) -> bool {
+    match token.token_type {
+        TokenType::Plus => true,
+        _ => false,
+    }
+}
+
 fn emit_end(token: &Token) -> ByteCode {
     let mut code = ByteCode::new();
     code.write_code(Opcode::Ret as u8, token.line as u32);
@@ -190,6 +252,28 @@ fn emit_number(token: &Token) -> ByteCode {
             code
         }
         _ => panic!("can't emit number from a NaN"),
+    }
+}
+
+fn emit_string(code: &mut ByteCode, token: &Token) {
+    match token.token_type {
+        TokenType::String => {
+            let str = token.lexeme.clone();
+            let str_index = code.strings.len();
+            code.write_string(str);
+            code.write_code(Opcode::Str as u8, token.line as u32);
+            code.write_code(str_index as u8, token.line as u32);
+        }
+        _ => panic!("can't emit string from a NaN"),
+    }
+}
+
+fn emit_op(code: &mut ByteCode, token: &Token) {
+    match token.token_type {
+        TokenType::Plus => {
+            code.write_code(Opcode::Add as u8, token.line as u32);
+        }
+        _ => panic!("can't emit string from a NaN"),
     }
 }
 

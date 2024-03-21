@@ -1,15 +1,22 @@
 use std::fmt;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Num(f64),
     Bool(bool),
+    Str(String),
     Nil,
 }
 impl Value {
     pub fn is_num(&self) -> bool {
         match self {
             Value::Num(_) => true,
+            _ => false,
+        }
+    }
+    pub fn is_string(&self) -> bool {
+        match self {
+            Value::Str(_) => true,
             _ => false,
         }
     }
@@ -25,6 +32,12 @@ impl Value {
             _ => panic!("can't extract number from non number Value"),
         }
     }
+    pub fn get_string(&self) -> String {
+        match self {
+            Value::Str(s) => s.clone(),
+            _ => panic!("can't extract string from non string Value"),
+        }
+    }
     pub fn get_bool(&self) -> bool {
         match self {
             Value::Bool(b) => b.clone(),
@@ -38,9 +51,7 @@ impl fmt::Display for Value {
             Value::Nil => write!(f, "Nil"),
             Value::Bool(v) => write!(f, "{v}"),
             Value::Num(n) => write!(f, "{n}"),
-            // Value::Obj(ob) => match ob {
-            //     ObjType::Str => write!(f, "{ob}"),
-            // },
+            Value::Str(s) => write!(f, "{s}"),
         }
     }
 }

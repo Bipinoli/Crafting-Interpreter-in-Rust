@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::usize;
+use std::{string, usize};
 
 #[repr(u8)]
 #[derive(Debug)]
@@ -21,6 +21,8 @@ pub enum Opcode {
     GreaterEqual = 13,
     LessEqual = 14,
     NotEqual = 15,
+
+    Str = 16,
 }
 impl TryFrom<u8> for Opcode {
     type Error = ();
@@ -42,6 +44,7 @@ impl TryFrom<u8> for Opcode {
             13 => Ok(Opcode::GreaterEqual),
             14 => Ok(Opcode::LessEqual),
             15 => Ok(Opcode::NotEqual),
+            16 => Ok(Opcode::Str),
             _ => Err(()),
         }
     }
@@ -49,10 +52,10 @@ impl TryFrom<u8> for Opcode {
 
 #[derive(Debug)]
 pub struct ByteCode {
-    code: Vec<u8>,
-    numbers: Vec<f64>,
-    strings: Vec<String>,
-    line_info: Vec<u32>,
+    pub code: Vec<u8>,
+    pub numbers: Vec<f64>,
+    pub strings: Vec<String>,
+    pub line_info: Vec<u32>,
 }
 impl ByteCode {
     pub fn new() -> Self {
@@ -137,6 +140,12 @@ impl ByteCode {
         }
         self.numbers[addr]
     }
+    pub fn fetch_string(&self, addr: usize) -> &String {
+        if addr >= self.strings.len() {
+            panic!("attempted to fetch data outside the data section boundary");
+        }
+        &self.strings[addr]
+    }
     pub fn disasm(&self, name: &str) {
         println!("====== Code section ({name}) ======");
         let mut offset = 0;
@@ -148,12 +157,13 @@ impl ByteCode {
     fn disasm_data(&self, name: &str) {
         println!("====== data section ({name}) ======");
         println!("Numbers: [{}]", {
-            let mut ret = String::new();
-            for num in &self.numbers {
-                ret = format!("{ret}, {}", num);
-            }
-            ret
+            self.numbers
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
         });
+        println!("Strings: [{}]", { self.strings.join(", ") });
     }
     pub fn disasm_instruction(&self, offset: usize) -> usize {
         print!("{:#06x} ", offset);
@@ -164,6 +174,7 @@ impl ByteCode {
         match opcode.unwrap() {
             Opcode::Ret => self.simple_instruction("Ret", offset),
             Opcode::Num => self.num_instruction("Num", offset),
+            Opcode::Str => self.str_instruction("Str", offset),
             Opcode::Neg => self.simple_instruction("Neg", offset),
             Opcode::Add => self.simple_instruction("Add", offset),
             Opcode::Sub => self.simple_instruction("Sub", offset),
@@ -190,6 +201,15 @@ impl ByteCode {
             panic!("attemptinng to read outside of data section");
         }
         let value = self.numbers[data_offset];
+        println!("{} {:#06x} '{}'", name, data_offset, value);
+        offset + 2
+    }
+    fn str_instruction(&self, name: &str, offset: usize) -> usize {
+        let data_offset = self.code[offset + 1] as usize;
+        if data_offset >= self.strings.len() {
+            panic!("attemptinng to read outside of data section");
+        }
+        let value = &self.strings[data_offset];
         println!("{} {:#06x} '{}'", name, data_offset, value);
         offset + 2
     }
