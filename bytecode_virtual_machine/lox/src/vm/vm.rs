@@ -3,8 +3,9 @@ use super::bytecode::ByteCode;
 use super::bytecode::Opcode;
 use super::value::Value;
 
+#[derive(Debug)]
 pub enum InterpretResult {
-    Ok,
+    Ok(Value),
     CompileErr,
     RuntimeErr,
 }
@@ -43,7 +44,7 @@ impl VM {
             }
 
             match instruction {
-                Opcode::Ret => return InterpretResult::Ok,
+                Opcode::Ret => return InterpretResult::Ok(self.stack.pop().unwrap()),
                 Opcode::Num => {
                     let addr = byte_code.fetch_operand(&mut self.ip);
                     let constant = byte_code.fetch_number(addr as usize);

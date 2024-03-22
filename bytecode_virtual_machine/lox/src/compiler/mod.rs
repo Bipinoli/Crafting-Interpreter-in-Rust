@@ -25,20 +25,23 @@ pub fn compile(tokens: &Vec<Token>) -> ByteCode {
     if is_end(tokens.peek()) {
         return emit_end(&tokens.next());
     }
-    if is_number(tokens.peek()) {
-        return binary_parser(&mut tokens, TokenType::Eof);
-    }
-    if is_string(tokens.peek()) {
-        return string_parser(&mut tokens);
-    }
+    return expression_parser(&mut tokens);
+}
+
+fn expression_parser(tokens: &mut TokenStream) -> ByteCode {
+    let expr_end = TokenType::Semicolon;
     let mut code = ByteCode::new();
     loop {
-        if is_end(tokens.peek()) {
+        if tokens.peek().token_type == expr_end {
             let token = tokens.next();
             code.write_code(Opcode::Ret as u8, token.line as u32);
             return code;
+        } else if is_end(tokens.peek()) {
+            panic!("expression must end with a semicolon");
+        } else if is_number(tokens.peek()) || tokens.peek().token_type == TokenType::LeftParen {
+            return binary_parser(tokens, expr_end);
         } else if is_string(tokens.peek()) {
-            emit_string(&mut code, &tokens.next());
+            code = string_parser(tokens);
         } else if is_op(tokens.peek()) {
             emit_op(&mut code, &tokens.next());
         } else {
@@ -84,14 +87,22 @@ fn string_parser(tokens: &mut TokenStream) -> ByteCode {
             _ => break,
         }
     }
-    code.write_code(Opcode::Ret as u8, 0);
     code
 }
 
 fn paren_parser(tokens: &mut TokenStream) -> ByteCode {
     if tokens.peek().token_type == TokenType::LeftParen {
         tokens.next();
-        let code = paren_parser(tokens);
+        let mut code = paren_parser(tokens);
+        if tokens.peek().token_type == TokenType::RightParen {
+            tokens.next();
+            return code;
+        }
+        code = pratt_parser(
+            code,
+            &Token::new(TokenType::Number, "".to_string(), 0),
+            tokens,
+        );
         tokens.next();
         return code;
     }
@@ -102,9 +113,19 @@ fn paren_parser(tokens: &mut TokenStream) -> ByteCode {
 
 fn binary_parser(tokens: &mut TokenStream, end_token: TokenType) -> ByteCode {
     let token = tokens.next();
-    let mut left = emit_number(&token);
+    let mut left = if token.token_type == TokenType::LeftParen {
+        paren_parser(tokens)
+    } else if token.token_type == TokenType::Number {
+        emit_number(&token)
+    } else {
+        panic!("invalid first token {} in binary parser", token.token_type);
+    };
     loop {
-        left = pratt_parser(left, &token, tokens);
+        left = pratt_parser(
+            left,
+            &Token::new(TokenType::Number, "".to_string(), 0),
+            tokens,
+        );
         if tokens.peek().token_type == end_token {
             return left;
         }
@@ -168,6 +189,10 @@ struct BindingPower {
 }
 fn get_binding_power(operator: &TokenType) -> BindingPower {
     match operator {
+        TokenType::Semicolon => BindingPower {
+            left_operand: -2.0,
+            right_operand: -2.0,
+        },
         TokenType::EqualEqual
         | TokenType::BangEqual
         | TokenType::Greater
@@ -311,12 +336,14 @@ fn emit_op(code: &mut ByteCode, token: &Token) {
 mod tests {
     use crate::scanner::token::{Token, TokenType};
     use crate::vm::bytecode::ByteCode;
+    use crate::vm::value::Value;
+    use crate::vm::vm::{InterpretResult, VM};
 
     use super::compile;
 
     #[test]
-    fn it_works() {
-        // 2 - 6 / 2 + 2 * 4
+    fn arithm_precedence() {
+        // 2 - 6 / 2 + 2 * 4;
         let tokens = vec![
             Token {
                 token_type: TokenType::Number,
@@ -364,6 +391,11 @@ mod tests {
                 line: 1,
             },
             Token {
+                token_type: TokenType::Semicolon,
+                lexeme: ";".to_string(),
+                line: 1,
+            },
+            Token {
                 token_type: TokenType::Eof,
                 lexeme: "".to_string(),
                 line: 1,
@@ -371,6 +403,146 @@ mod tests {
         ];
 
         let bytecode = compile(&tokens);
-        bytecode.disasm("2 - 6 / 2 + 2 * 4");
+        bytecode.disasm("2 - 6 / 2 + 2 * 4;");
+        let mut vm = VM::new();
+        let result = vm.interpret(&bytecode);
+        match result {
+            InterpretResult::Ok(val) => {
+                assert_eq!(val, Value::Num(7.0));
+            }
+            _ => panic!("unexpected return"),
+        }
+    }
+
+    #[test]
+    fn parenthesis_precedence() {
+        // ( 2* 3 + (2 + 3)) * ((2 + 4) * 2);
+        let tokens = vec![
+            Token {
+                token_type: TokenType::LeftParen,
+                lexeme: "(".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Number,
+                lexeme: "2".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Star,
+                lexeme: "*".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Number,
+                lexeme: "3".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Plus,
+                lexeme: "+".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::LeftParen,
+                lexeme: "(".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Number,
+                lexeme: "2".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Plus,
+                lexeme: "+".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Number,
+                lexeme: "3".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::RightParen,
+                lexeme: ")".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::RightParen,
+                lexeme: ")".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Star,
+                lexeme: "*".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::LeftParen,
+                lexeme: "(".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::LeftParen,
+                lexeme: "(".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Number,
+                lexeme: "2".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Plus,
+                lexeme: "+".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Number,
+                lexeme: "4".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::RightParen,
+                lexeme: ")".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Star,
+                lexeme: "*".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Number,
+                lexeme: "2".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::RightParen,
+                lexeme: ")".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Semicolon,
+                lexeme: ";".to_string(),
+                line: 1,
+            },
+            Token {
+                token_type: TokenType::Eof,
+                lexeme: "".to_string(),
+                line: 1,
+            },
+        ];
+        let bytecode = compile(&tokens);
+        bytecode.disasm("( 2*  3 + (2 + 3)) * ((2 + 4) * 2);");
+        let mut vm = VM::new();
+        let result = vm.interpret(&bytecode);
+        match result {
+            InterpretResult::Ok(val) => {
+                assert_eq!(val, Value::Num(132.0));
+            }
+            _ => panic!("unexpected return"),
+        }
     }
 }
